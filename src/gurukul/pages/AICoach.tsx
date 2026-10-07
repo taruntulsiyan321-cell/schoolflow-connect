@@ -2,7 +2,6 @@
 import { useSearchParams } from "react-router-dom";
 import { withAlpha } from "@/lib/colorAlpha";
 import { createPortal } from "react-dom";
-import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent, useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn } from "@/gurukul/components/shared";
@@ -20,7 +19,7 @@ import {
   askAiCoach, recordAiFeedback, AI_BILLING_UNAVAILABLE_MSG, isAiBillingOrCreditsIssue,
   type NovaRecentTurn, type NovaQuestionContext,
 } from "@/academic/ai/gatewayClient";
-import { isPlaceholderLabel } from "@/academic/ai/novaContextBuilder";
+import { isPlaceholderLabel } from "../../../supabase/functions/_shared/novaContextBuilder.ts";
 import { consumeNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import {
   processAttachmentFile, AttachmentError,
@@ -445,7 +444,7 @@ function Sidebar({
       </div>
 
       {/* Conversation list */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-none" onClick={() => { setMenuFor(null); setMenuPos(null); }}>
+      <div className="flex-1 overflow-y-auto p-2 space-y-1" onClick={() => { setMenuFor(null); setMenuPos(null); }}>
         {pinned.length > 0 && (
           <div>
             <div className="px-3 py-1.5 text-[9px] uppercase tracking-[0.15em] text-muted-foreground/60">Pinned</div>
@@ -669,7 +668,7 @@ function InputBar({
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void }) {
+export default function AICoach() {
   const student = useGurukulStudent();
   const { examName, examCode } = useGurukulAcademicIdentity();
   const examLabel = examName || examCode || null;
@@ -1180,7 +1179,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         </div>
 
         {/* Messages area */}
-        <div className="flex-1 overflow-y-auto scrollbar-none">
+        <div className="flex-1 overflow-y-auto">
           {msgs.length === 0 && !(isTyping && active?.questionContext) ? (
             <SuggestionGrid
               onSelect={handleSuggestion}

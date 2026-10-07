@@ -1,21 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { extractAccessToken, extractAccessTokenMeta, classifyMsg91Failure, settingsFrom } from "./msg91Widget";
+import { extractAccessTokenMeta, classifyMsg91Failure, settingsFrom } from "./msg91Widget";
 
-describe("extractAccessToken", () => {
+/** The token verifyMsg91Otp hands on, from a widget success payload. */
+const extractToken = (data: Parameters<typeof extractAccessTokenMeta>[0]) =>
+  extractAccessTokenMeta(data)?.token ?? null;
+
+describe("the access-token in a widget success payload", () => {
   it("reads the token from data.message when that is the only field", () => {
-    expect(extractAccessToken({ message: "abc123" })).toBe("abc123");
+    expect(extractToken({ message: "abc123" })).toBe("abc123");
   });
 
   it("reads data['access-token']", () => {
-    expect(extractAccessToken({ "access-token": "xyz789" })).toBe("xyz789");
+    expect(extractToken({ "access-token": "xyz789" })).toBe("xyz789");
   });
 
   it("reads data.token", () => {
-    expect(extractAccessToken({ token: "tok-1" })).toBe("tok-1");
+    expect(extractToken({ token: "tok-1" })).toBe("tok-1");
   });
 
   it("reads data.accessToken", () => {
-    expect(extractAccessToken({ accessToken: "tok-2" })).toBe("tok-2");
+    expect(extractToken({ accessToken: "tok-2" })).toBe("tok-2");
   });
 
   it("prefers access-token over message when both are present (invisible OTP / SDK shape)", () => {
@@ -23,7 +27,7 @@ describe("extractAccessToken", () => {
     const jwt =
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.sig";
     expect(
-      extractAccessToken({
+      extractToken({
         message: "336870744532313134323444",
         "access-token": jwt,
       }),
@@ -33,26 +37,26 @@ describe("extractAccessToken", () => {
   it("prefers a JWT-shaped message over a non-JWT sibling field", () => {
     const jwt =
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.sig";
-    expect(extractAccessToken({ message: jwt, token: "req-id-not-jwt" })).toBe(jwt);
+    expect(extractToken({ message: jwt, token: "req-id-not-jwt" })).toBe(jwt);
   });
 
   it("prefers access-token / token over a non-JWT message", () => {
-    expect(extractAccessToken({ message: "req-id-only", token: "tok-from-field" })).toBe(
+    expect(extractToken({ message: "req-id-only", token: "tok-from-field" })).toBe(
       "tok-from-field",
     );
   });
 
   it("returns null for missing/empty/non-string values", () => {
-    expect(extractAccessToken(null)).toBeNull();
-    expect(extractAccessToken(undefined)).toBeNull();
-    expect(extractAccessToken({})).toBeNull();
-    expect(extractAccessToken({ message: "" })).toBeNull();
-    expect(extractAccessToken({ message: "   " })).toBeNull();
-    expect(extractAccessToken({ message: 12345 as unknown as string })).toBeNull();
+    expect(extractToken(null)).toBeNull();
+    expect(extractToken(undefined)).toBeNull();
+    expect(extractToken({})).toBeNull();
+    expect(extractToken({ message: "" })).toBeNull();
+    expect(extractToken({ message: "   " })).toBeNull();
+    expect(extractToken({ message: 12345 as unknown as string })).toBeNull();
   });
 
   it("trims whitespace around a valid token", () => {
-    expect(extractAccessToken({ message: "  padded-token  " })).toBe("padded-token");
+    expect(extractToken({ message: "  padded-token  " })).toBe("padded-token");
   });
 });
 

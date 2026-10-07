@@ -4931,10 +4931,10 @@ included (one home for every ruling); the badge catalogue (Achievements shows an
 
 **Open:**
 
-1. **Test-only AI scaffolding still carries school capabilities** — question papers, image and voice
-   doubts, the school health brief, `eie/schoolRollups`, `eie/riskProducts`, the prompt library. None is in
-   the bundle (nothing the app imports reaches them). Taking the school half out means rewriting the
-   multi-role capability catalogue, which is the organisation branch's to do.
+1. **The capability catalogue still carries school capabilities** — question papers, image and voice doubts,
+   the school health brief. The test-only scaffolding that also carried them is gone (117); the catalogue is now
+   the one edge copy, `supabase/functions/_shared/capabilityCatalog.ts`, which the app imports too. Taking the
+   school half out of it is the organisation branch's to do.
 2. **`supabase/functions/_shared/phone.ts` says it mirrors `src/lib/phone.ts`**, which is deleted: its last
    caller was the organisation sign-in. `src/lib/phone.test.ts` now tests the edge copy, the one
    `verify-msg91-widget` runs. Correct the comment at the next deploy of `verify-msg91-widget` and
@@ -5185,3 +5185,59 @@ with a control that fails (a floated bar must be seen). Fixed on the way, each a
    the new menu.
 4. Labels at 10px (the uppercase eyebrows, the bottom bar's names) are a design choice, not a defect; they are
    the only text under 11px the passes found.
+
+## 117. Dead code removed, and what it had been hiding — FIXED 2026-10-07 (ai-gateway deployed); what is open
+
+**The owner asked (2026-10-04) for every dead file and every bug to go.** The largest dead mass was 32 files
+(about 6,600 lines) under `src/academic/ai`, `src/academic/eie`, `src/academic/services` and `src/lib` that only
+tests reached. `lint:unreferenced-src` could not see them: it counts tests as entry points, so a file only a test
+imports reads as reachable. Twenty-one were copies of `supabase/functions/_shared` modules, drifted both ways, and
+the tests verified the copies — so fixes made in a copy passed while production ran the other. Repointed at the
+modules that run, the tests found:
+
+* **§10.8, LIVE in Nova.** The edge EIE projection still selected `strong_concepts` and named bands "strong" and
+  "mastered"; Nova chat spreads that projection into the model's facts, and 77 of the 147 cached gateway payloads
+  carried it. The 10.5 fix had landed only in the client copy. Fixed: the edge bands are "high"/"very_high" on the
+  same cuts as `src/academic/eie/masteryBands.ts` (a test compares the two score by score), and nothing selects
+  strengths. **Measured on production after the deploy**, as the demo student: the mastery summary carries no
+  strength word, `by_band` reads critical/weak/developing/high/very_high, and the 10 top-band concepts the old
+  projection listed are in no list.
+* **The recommender's placeholder filter existed only in the copy** — production would offer "Practise General"
+  from a placeholder mastery row (one such row is live, on a banned school account). Fixed.
+* **The context builder dropped `student_id` but not `studentId`** from what the model sees. Fixed.
+* **Concept explain looked a named concept up only in the weak and strong lists**, so a concept in between was
+  answered with the weakest concept's facts. It now finds the concept the student names in any band
+  (`findNamedConcept`), and the weakest only when they name none.
+* **The context pack's §10.8 test serialised its own fixture**, which held no strength to find. It now builds the
+  pack from the real projection; putting strengths back fails it.
+
+Gone with them: the test-only models of things production does in SQL or inside `aiRouter.ts` (router policy,
+workflow orchestrator, permissions, L1 cache, knowledge management, budget reservation, upload promotion gates,
+student intelligence, the benchmark suite and `npm run test:ai-benchmarks`); the client capability catalogue and
+Nova context builder, replaced by the edge modules (the app imports them as it does `questionForms.ts`); the
+`PRESENTATION_MODE` flag nothing read and the four checks that it stayed false; `ui/label.tsx`; seven unused
+dependencies; a `scrollbar-none` class no CSS defined; and the test-only exports the app never called.
+
+Bugs in code that stayed: `practiceAccuracyFromSnapshot` fell back to the test+practice blend when the practice
+figure was present and null — its test, named "does NOT fall back", asserted the fallback — and `hasPracticeAccuracy`
+held the right rule beside it. One reader now, returning null. Home and Profile each built the student's name and
+initials themselves: an account without a name showed its email's local part as its name (an exam account's is
+its phone number) and the invented initials "ST". Both go through `toPersonName` / `toInitials` now.
+
+Kept on purpose, per 110: the school rulings in `thresholds.ts` and `bands.ts`.
+
+**Open:**
+
+1. **`reasoningBudget.ts` differs from 11 deployed copies by one unreachable comparison** (`tier === "enterprise"`
+   after enterprise had become complex), deleted because the typecheck now reads the file. Behaviour-identical;
+   accepted in `edge-drift-baseline.json`. Each function takes it at its next deploy — lower the baseline then.
+2. **Stale headers in shared edge modules**, to correct at the next deploy of the functions that bundle them:
+   `failureRecovery.ts` ("edge mirror of src/academic/ai/failureRecovery.ts"), `promptLibrary.ts` ("Keep in sync
+   with src/academic/ai/novaTutoringPolicy.ts NOVA_CHAT_SYSTEM_V3"), and `questionGenerator.ts` (its "SHARED BODY
+   (parity-checked" marker — there is no pair now; the test imports the module).
+3. **No gate type-checks the edge functions.** Compiled with `tsc` (Deno's URL import mapped to the installed
+   package), ai-gateway's graph has 59 errors, none added here: results read as `.error` without narrowing, and
+   `process` in Deno code. They run because the bundler does not type-check.
+4. **Concept explain reads office facts for a student.** It calls `fetchEie` without `learningOnly`, so a school
+   student's attendance and homework are read and `attendance_risk` enters the pack. Individual students have no
+   such row; a school-era path.

@@ -4,7 +4,6 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ALLOWLIST = new Set([
-  "src/lib/presentationMode.ts",
   "src/gurukul/emptyStudent.ts",
 ]);
 const SCAN_GLOBS = [
@@ -47,12 +46,6 @@ function isAllowlisted(relPath) {
 }
 
 const failures = [];
-{
-  const text = fs.readFileSync(path.join(root, "src/lib/presentationMode.ts"), "utf8");
-  if (!/export\s+const\s+PRESENTATION_MODE\s*=\s*false\s*;/.test(text)) {
-    failures.push("PRESENTATION_MODE must be false");
-  }
-}
 const files = [];
 for (const g of SCAN_GLOBS) walk(path.join(root, g), files);
 for (const abs of files) {

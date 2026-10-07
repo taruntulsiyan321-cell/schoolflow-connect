@@ -1,179 +1,65 @@
 /**
- * Phase 3 continued — Vector Retrieval v0, embedding stub, Session Memory v1,
- * teacher paper plan dry-run.
+ * Phase 3 continued — Vector Retrieval, Session Memory v1, teacher paper plan.
+ *
+ * Ranking is the SQL function `ai_kms_retrieve_chunks`; what the edge module
+ * owns is reading its payload, which is tested through `retrieveKmsChunks`.
  */
 
 import { describe, expect, it } from "vitest";
 import {
-  lexicalOverlap,
-  cosineSimilarity,
-  isEvidenceSufficient,
   buildEvidenceCitations,
-  rankApprovedChunksLocally,
-  parseRetrievalRpcPayload,
-} from "./vectorRetrieval";
+  retrieveKmsChunks,
+} from "../../../supabase/functions/_shared/vectorRetrieval.ts";
 import {
-  isEmbeddingProviderConfigured,
-  planEmbeddingJobAction,
-  buildEmbeddingStub,
-} from "./knowledgeManagement";
-import {
-  SESSION_MEMORY_CAPABILITIES,
   sessionScopeForCapability,
   isSessionMemoryAllowed,
   buildSessionSummaryPatch,
   redactSessionForContext,
-} from "./sessionMemory";
-import { planQuestionPaper, runPaperPlanDryRun } from "./questionPaperPlan";
-import {
-  createWorkflowRun,
-  getWorkflowDefinition,
-  listWorkflowDefinitions,
-} from "./workflowOrchestrator";
-import { getCapability } from "./capabilityCatalog";
-import { planRoute } from "./routerPolicy";
+} from "../../../supabase/functions/_shared/sessionMemory.ts";
+import { planQuestionPaper } from "../../../supabase/functions/_shared/questionPaperPlan.ts";
+import { getCapability } from "../../../supabase/functions/_shared/capabilityCatalog.ts";
 import { mapIntentToCapability } from "./intentMapper";
-import { buildContextPack } from "./contextBuilder";
+import { buildContextPack } from "../../../supabase/functions/_shared/contextBuilder.ts";
 
-const FLAGS = {
-  gatewayEnabled: true,
-  deterministicEnabled: true,
-  generativeEnabled: true,
-};
+/** A client whose one RPC answers with `payload`, recording what it was asked. */
+function rpcReturning(payload: unknown) {
+  const calls: Array<{ fn: string; args: Record<string, unknown> }> = [];
+  return {
+    calls,
+    rpc: async (fn: string, args: Record<string, unknown>) => {
+      calls.push({ fn, args });
+      return { data: payload, error: null };
+    },
+  };
+}
 
 describe("Vector Retrieval v0", () => {
-  it("scores lexical overlap without inventing tokens", () => {
-    expect(lexicalOverlap("fractions decimals", "Learn fractions and decimals today")).toBe(1);
-    expect(lexicalOverlap("photosynthesis", "gravity and motion")).toBe(0);
-    expect(lexicalOverlap("", "anything")).toBe(0);
-  });
-
-  it("computes cosine similarity for compat vectors", () => {
-    expect(cosineSimilarity([1, 0], [1, 0])).toBeCloseTo(1);
-    expect(cosineSimilarity([1, 0], [0, 1])).toBeCloseTo(0);
-    expect(cosineSimilarity([], [1])).toBeNull();
-  });
-
-  it("ranks only published approved chunks; draft excluded", () => {
-    const pack = rankApprovedChunksLocally({
-      query: "fractions improper",
-      chunks: [
+  it("parses RPC payload and evidence citations", async () => {
+    const client = rpcReturning({
+      school_id: "s1",
+      query: "fractions",
+      mode: "lexical",
+      min_score: 0.12,
+      hits: [
         {
           chunk_id: "c1",
           document_id: "d1",
-          chunk_text: "Improper fractions are greater than one",
-          published: true,
-          document_status: "published",
-          document_title: "Math notes",
-        },
-        {
-          chunk_id: "c2",
-          document_id: "d2",
-          chunk_text: "Improper fractions draft only",
-          published: false,
-          document_status: "draft",
-        },
-        {
-          chunk_id: "c3",
-          document_id: "d3",
-          chunk_text: "Gravity and orbits",
-          published: true,
-          document_status: "published",
+          chunk_text: "A long excerpt about fractions ".repeat(20),
+          document_title: "Notes",
+          score: 0.8,
+          match_mode: "lexical",
         },
       ],
-      min_score: 0.2,
+      hit_count: 1,
+      approved_only: true,
     });
-    expect(pack.approved_only).toBe(true);
+    const pack = await retrieveKmsChunks(client, { school_id: "s1", query: "fractions" });
+    expect(client.calls.map((c) => c.fn)).toEqual(["ai_kms_retrieve_chunks"]);
     expect(pack.hits.map((h) => h.chunk_id)).toEqual(["c1"]);
     expect(pack.sufficient).toBe(true);
-    expect(pack.mode).toBe("lexical");
-  });
-
-  it("prefers vector_compat when query embedding present", () => {
-    const pack = rankApprovedChunksLocally({
-      query: "ignored when vector matches",
-      query_embedding: [1, 0, 0],
-      chunks: [
-        {
-          chunk_id: "v1",
-          document_id: "d1",
-          chunk_text: "unrelated text",
-          published: true,
-          document_status: "published",
-          embedding_compat: [0.9, 0.1, 0],
-        },
-      ],
-      min_score: 0.5,
-    });
-    expect(pack.mode).toBe("vector_compat");
-    expect(pack.hits[0]?.chunk_id).toBe("v1");
-  });
-
-  it("falls back to lexical when vectors missing", () => {
-    const pack = rankApprovedChunksLocally({
-      query: "algebra equations",
-      query_embedding: [1, 0],
-      chunks: [
-        {
-          chunk_id: "l1",
-          document_id: "d1",
-          chunk_text: "Solving algebra equations",
-          published: true,
-          document_status: "published",
-          embedding_compat: null,
-        },
-      ],
-      min_score: 0.3,
-    });
-    expect(pack.mode).toBe("lexical");
-    expect(pack.sufficient).toBe(true);
-  });
-
-  it("parses RPC payload and evidence citations", () => {
-    const pack = parseRetrievalRpcPayload(
-      {
-        school_id: "s1",
-        query: "fractions",
-        mode: "lexical",
-        min_score: 0.12,
-        hits: [
-          {
-            chunk_id: "c1",
-            document_id: "d1",
-            chunk_text: "A long excerpt about fractions ".repeat(20),
-            document_title: "Notes",
-            score: 0.8,
-            match_mode: "lexical",
-          },
-        ],
-        hit_count: 1,
-        approved_only: true,
-      },
-      "s1",
-      "fractions",
-    );
-    expect(isEvidenceSufficient(pack.hits)).toBe(true);
     const cites = buildEvidenceCitations(pack.hits);
     expect(cites[0]?.excerpt.length).toBeLessThanOrEqual(280);
     expect(cites[0]?.title).toBe("Notes");
-  });
-});
-
-describe("Embedding job stub", () => {
-  it("defers when provider unset (safe degrade)", () => {
-    expect(isEmbeddingProviderConfigured({})).toBe(false);
-    expect(planEmbeddingJobAction(false)).toEqual({
-      action: "defer",
-      embed_status: "deferred",
-      reason: "embedding_provider_unset",
-    });
-    expect(buildEmbeddingStub().status).toBe("deferred");
-  });
-
-  it("marks pending_embed when a provider key is present", () => {
-    expect(isEmbeddingProviderConfigured({ OPENAI_API_KEY: "sk-test" })).toBe(true);
-    expect(planEmbeddingJobAction(true).action).toBe("embed");
-    expect(planEmbeddingJobAction(true).embed_status).toBe("pending_embed");
   });
 });
 
@@ -182,11 +68,11 @@ describe("Session Memory v1", () => {
     expect(sessionScopeForCapability("student.concept.explain")).toBe("tutoring");
     expect(sessionScopeForCapability("teacher.question_paper.plan")).toBe("paper_gen");
     expect(sessionScopeForCapability("parent.child.summary")).toBe("parent_guidance");
-    expect(SESSION_MEMORY_CAPABILITIES["principal.school.health_brief"]).toBe(
+    expect(sessionScopeForCapability("principal.school.health_brief")).toBe(
       "principal_analytics",
     );
-    expect(SESSION_MEMORY_CAPABILITIES["principal.analytics.brief"]).toBeUndefined();
-    expect(SESSION_MEMORY_CAPABILITIES["teacher.question_paper.generate"]).toBeUndefined();
+    expect(sessionScopeForCapability("principal.analytics.brief")).toBeNull();
+    expect(sessionScopeForCapability("teacher.question_paper.generate")).toBeNull();
     expect(isSessionMemoryAllowed("student.attendance.query")).toBe(false);
   });
 
@@ -240,7 +126,7 @@ describe("Session Memory v1", () => {
   });
 });
 
-describe("Teacher question paper plan dry-run", () => {
+describe("Teacher question paper plan", () => {
   it("allocates deterministic curriculum weights without generating questions", () => {
     const plan = planQuestionPaper({
       subject: "Mathematics",
@@ -261,34 +147,9 @@ describe("Teacher question paper plan dry-run", () => {
     expect(plan.plan_hash.startsWith("plan_")).toBe(true);
     expect(JSON.stringify(plan)).not.toMatch(/Qwen|OpenRouter/i);
   });
-
-  it("runPaperPlanDryRun completes all planned checkpoints", () => {
-    const run = runPaperPlanDryRun({
-      subject: "Science",
-      total_marks: 40,
-      chapters: [{ name: "Cells" }, { name: "Atoms" }],
-    });
-    expect(run.run_status).toBe("completed");
-    expect(run.checkpoints.every((c) => c.ok)).toBe(true);
-    expect(run.plan.chapters.every((c) => c.marks === 20)).toBe(true);
-  });
-
-  it("registers enabled plan workflow and disabled full generate", () => {
-    const planWf = getWorkflowDefinition("teacher.question_paper.plan.v1");
-    expect(planWf?.enabled).toBe(true);
-    expect(planWf?.capability_id).toBe("teacher.question_paper.plan");
-    expect(getWorkflowDefinition("teacher.question_paper.v1")?.enabled).toBe(false);
-    const run = createWorkflowRun({
-      workflow_id: "teacher.question_paper.plan.v1",
-      run_id: "plan-1",
-    });
-    expect(run.status).toBe("pending");
-    expect(run.error_code).toBeUndefined();
-    expect(listWorkflowDefinitions().length).toBeGreaterThanOrEqual(3);
-  });
 });
 
-describe("Capability catalog + router policy", () => {
+describe("Capability catalog", () => {
   it("registers knowledge.retrieve and paper.plan without super_admin", () => {
     const retrieve = getCapability("student.knowledge.retrieve");
     expect(retrieve?.route_class).toBe("grounded_retrieval");
@@ -300,20 +161,6 @@ describe("Capability catalog + router policy", () => {
     expect(paper?.route_class).toBe("content_generation");
     expect(paper?.model_policy).toBe("never");
     expect(paper?.allowed_roles).toEqual(["teacher", "admin"]);
-  });
-
-  it("plans retrieval and paper routes without model", () => {
-    const r = planRoute("student.knowledge.retrieve", FLAGS);
-    expect("rejected" in r && r.rejected).toBeFalsy();
-    if (!("rejected" in r)) {
-      expect(r.may_call_model).toBe(false);
-      expect(r.decision_if_ready).toBe("answered_retrieval");
-    }
-    const p = planRoute("teacher.question_paper.plan", FLAGS);
-    if (!("rejected" in p)) {
-      expect(p.may_call_model).toBe(false);
-      expect(p.decision_if_ready).toBe("answered_deterministic");
-    }
   });
 
   it("maps intents for retrieve and paper plan", () => {

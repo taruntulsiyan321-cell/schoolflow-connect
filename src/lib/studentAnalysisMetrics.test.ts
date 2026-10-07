@@ -17,27 +17,7 @@ import {
   SUBJECT_PALETTE,
 } from "@/lib/studentAnalysisMetrics";
 import { REVISION_STAGES_TO_SOLID } from "@/academic/recovery/constants";
-import type { PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
 import { buildMilestones } from "@/components/student/analytics/wisdom/analyticsDerived";
-
-function session(partial: Partial<PracticeSessionSummary> & Pick<PracticeSessionSummary, "id" | "subject">): PracticeSessionSummary {
-  return {
-    chapter: partial.chapter ?? "Ch",
-    question_count: partial.question_count ?? 10,
-    correct_count: partial.correct_count ?? 7,
-    score: partial.score ?? 70,
-    created_at: partial.created_at ?? "2026-07-01T10:00:00Z",
-    finished_at: partial.finished_at ?? "2026-07-01T10:20:00Z",
-    wrong_count: partial.wrong_count ?? 3,
-    // Measured milliseconds, null when nothing timed the session. The fixture
-    // default used to be `duration_minutes: 20`, which every speed assertion
-    // below silently depended on — and which was exactly the shape of the
-    // production defect: a constant standing in for a measurement.
-    measured_ms: partial.measured_ms ?? 20 * 60_000,
-    accuracy_pct: partial.accuracy_pct ?? 70,
-    ...partial,
-  };
-}
 
 describe("studentAnalysisMetrics", () => {
   it("builds this-week vs last-week comparison from activity dates", () => {

@@ -1,74 +1,46 @@
 /**
- * Phase 3 SSOT close-out — embedding provider, OCR submit, benchmark CI,
- * paper outline, principal health brief.
+ * Phase 3 SSOT close-out — embedding provider, OCR submit, paper outline,
+ * principal health brief. Every import is an edge module a deployed function
+ * runs; each private helper is reached through the function that calls it.
  */
 
 import { describe, expect, it } from "vitest";
 import {
   isEmbeddingProviderConfigured,
   resolveEmbeddingApiKey,
-  planProcessOneEmbeddingJob,
-  parseEmbeddingApiResponse,
   processOneEmbeddingJob,
-  buildEmbeddingRequestBody,
   embedQueryText,
-} from "./embeddingProvider";
-import {
-  validateImageMetadata,
-  runOcrPipelineStub,
-  runImageDoubtSubmit,
-} from "./multimodalPipeline";
-import {
-  evaluateFixture,
-  runBuiltinBenchmarkSuites,
-  evaluateBenchmarkGate,
-  BUILTIN_BENCHMARK_FIXTURES,
-  criticalSuiteIds,
-} from "./benchmarkSuite";
+} from "../../../supabase/functions/_shared/embeddingProvider.ts";
+import { runImageDoubtSubmit } from "../../../supabase/functions/_shared/multimodalPipeline.ts";
 import {
   buildQuestionPaperOutline,
-  buildOutlineSectionsFromPlan,
   renderOutlinePrompt,
-} from "./questionPaperOutline";
-import { planQuestionPaper } from "./questionPaperPlan";
-import { buildSchoolHealthBrief } from "./schoolHealthBrief";
-import { getCapability } from "./capabilityCatalog";
-import { planRoute } from "./routerPolicy";
+} from "../../../supabase/functions/_shared/questionPaperOutline.ts";
+import { planQuestionPaper } from "../../../supabase/functions/_shared/questionPaperPlan.ts";
+import { buildSchoolHealthBrief } from "../../../supabase/functions/_shared/schoolHealthBrief.ts";
+import { getCapability } from "../../../supabase/functions/_shared/capabilityCatalog.ts";
 import { mapIntentToCapability } from "./intentMapper";
-import {
-  createWorkflowRun,
-  getWorkflowDefinition,
-  listWorkflowDefinitions,
-} from "./workflowOrchestrator";
-import { getBuiltinPrompt } from "./promptLibrary";
-import { SESSION_MEMORY_CAPABILITIES } from "./sessionMemory";
-import { isEmbeddingProviderConfigured as kmsEmbConfigured } from "./knowledgeManagement";
+import { getBuiltinPrompt } from "../../../supabase/functions/_shared/promptLibrary.ts";
+import { sessionScopeForCapability } from "../../../supabase/functions/_shared/sessionMemory.ts";
 
-const FLAGS_ON = {
-  gatewayEnabled: true,
-  deterministicEnabled: true,
-  generativeEnabled: true,
-};
-const FLAGS_GEN_OFF = {
-  gatewayEnabled: true,
-  deterministicEnabled: true,
-  generativeEnabled: false,
-};
+const JOB = { job_id: "j1", chunk_id: "c1", school_id: "s1", chunk_text: "Algebra basics" };
+
+/** A fetch that answers with one embedding and records every request. */
+function embeddingFetch(embedding: number[]) {
+  const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+  const fetchImpl = (async (url: string, init?: RequestInit) => {
+    requests.push({ url, body: JSON.parse(String(init?.body ?? "{}")) });
+    return new Response(
+      JSON.stringify({ model: "openai/text-embedding-3-small", data: [{ embedding }] }),
+      { status: 200 },
+    );
+  }) as unknown as typeof fetch;
+  return { requests, fetchImpl };
+}
 
 describe("Embedding provider hook", () => {
   it("defers when no API keys are set", () => {
     expect(isEmbeddingProviderConfigured({})).toBe(false);
-    expect(kmsEmbConfigured({})).toBe(false);
-    const plan = planProcessOneEmbeddingJob(
-      {
-        job_id: "j1",
-        chunk_id: "c1",
-        school_id: "s1",
-        chunk_text: "Fractions are parts of a whole",
-      },
-      {},
-    );
-    expect(plan.action).toBe("defer");
   });
 
   it("accepts OPENROUTER_API_KEY and AI_EMBEDDING_API_KEY", () => {
@@ -81,37 +53,31 @@ describe("Embedding provider hook", () => {
     expect(isEmbeddingProviderConfigured({ AI_EMBEDDING_API_KEY: "x" })).toBe(true);
   });
 
-  it("plans embed action with truncated input when configured", () => {
-    const plan = planProcessOneEmbeddingJob(
-      {
-        job_id: "j1",
-        chunk_id: "c1",
-        school_id: "s1",
-        chunk_text: "Algebra basics",
-      },
-      { OPENROUTER_API_KEY: "sk-test" },
-    );
-    expect(plan.action).toBe("embed");
-    if (plan.action === "embed") {
-      expect(plan.provider).toBe("openrouter");
-      expect(plan.input_text).toBe("Algebra basics");
-      expect(buildEmbeddingRequestBody({ model: plan.model, text: plan.input_text }).input).toBe(
-        "Algebra basics",
-      );
+  it("sends the chunk text to the configured provider and reads its vector back", async () => {
+    const { requests, fetchImpl } = embeddingFetch([0.1, 0.2, 0.3]);
+    const result = await processOneEmbeddingJob(JOB, {
+      env: { OPENROUTER_API_KEY: "sk-test" },
+      fetchImpl,
+    });
+    expect(requests).toHaveLength(1);
+    expect(requests[0].url).toBe("https://openrouter.ai/api/v1/embeddings");
+    expect(requests[0].body.input).toBe("Algebra basics");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.dims).toBe(3);
+      expect(result.embedding).toEqual([0.1, 0.2, 0.3]);
     }
   });
 
-  it("parses OpenAI-compatible embedding responses", () => {
-    const parsed = parseEmbeddingApiResponse(
-      { model: "text-embedding-3-small", data: [{ embedding: [0.1, 0.2, 0.3] }] },
-      "openrouter",
-      "fallback",
+  it("defers an empty chunk without calling the provider", async () => {
+    const { requests, fetchImpl } = embeddingFetch([1]);
+    const result = await processOneEmbeddingJob(
+      { ...JOB, chunk_text: "   " },
+      { env: { OPENROUTER_API_KEY: "sk-test" }, fetchImpl },
     );
-    expect(parsed.ok).toBe(true);
-    if (parsed.ok) {
-      expect(parsed.dims).toBe(3);
-      expect(parsed.embedding).toEqual([0.1, 0.2, 0.3]);
-    }
+    expect(requests).toHaveLength(0);
+    expect(result.ok).toBe(false);
+    expect((result as Extract<typeof result, { ok: false }>).deferred).toBe(true);
   });
 
   it("processOneEmbeddingJob defers without inventing vectors when unset", async () => {
@@ -178,29 +144,22 @@ describe("Embedding provider hook", () => {
 });
 
 describe("OCR pipeline hardening + image_doubt.submit", () => {
-  it("rejects blocked mime and malware stub flag", () => {
-    expect(
-      validateImageMetadata({
-        mime: "application/x-msdownload",
-        bytes: 1200,
-      }).ok,
-    ).toBe(false);
-    expect(
-      validateImageMetadata({
-        mime: "image/jpeg",
-        bytes: 1200,
-        width: 400,
-        height: 300,
-        malware_scan_status: "stub_flagged",
-      }).errors,
-    ).toContain("malware_stub_flagged");
-    expect(
-      validateImageMetadata({
-        mime: "image/jpeg",
-        bytes: 1200,
-        filename: "virus.exe",
-      }).errors,
-    ).toContain("dangerous_filename_extension");
+  it("rejects blocked mime, a flagged scan and an executable name", () => {
+    const blocked = runImageDoubtSubmit({ mime: "application/x-msdownload", bytes: 1200 });
+    expect(blocked.status).toBe("rejected");
+    expect(blocked.stop_reason).toContain("blocked_mime");
+    const flagged = runImageDoubtSubmit({
+      mime: "image/jpeg",
+      bytes: 1200,
+      width: 400,
+      height: 300,
+      malware_scan_status: "stub_flagged",
+    });
+    expect(flagged.status).toBe("rejected");
+    expect(flagged.stop_reason).toContain("malware_stub_flagged");
+    const exe = runImageDoubtSubmit({ mime: "image/jpeg", bytes: 1200, filename: "virus.exe" });
+    expect(exe.status).toBe("rejected");
+    expect(exe.stop_reason).toContain("dangerous_filename_extension");
   });
 
   it("submit workflow clarifies without inventing problem text when OCR unset", () => {
@@ -230,56 +189,19 @@ describe("OCR pipeline hardening + image_doubt.submit", () => {
     expect(result.invented_problem_text).toBe(false);
   });
 
-  it("OCR stub still never invents text when provider present but live deferred", () => {
-    const ocr = runOcrPipelineStub(
+  it("never invents text when a provider is present but live OCR is deferred", () => {
+    const result = runImageDoubtSubmit(
       { mime: "image/webp", bytes: 900, width: 200, height: 200 },
       { providerConfigured: true },
     );
-    expect(ocr.ok).toBe(false);
-    if (!ocr.ok) {
-      expect(ocr.action).toBe("clarify");
-      expect(ocr.extraction?.ocr_text).toBeNull();
-      expect(ocr.extraction?.normalised_question_text).toBeNull();
-    }
+    expect(result.status).toBe("clarify");
+    expect(result.invented_problem_text).toBe(false);
+    expect(result.ocr_text).toBeNull();
+    expect(result.normalised_question_text).toBeNull();
   });
 
-  it("registers enabled submit workflow", () => {
-    const def = getWorkflowDefinition("student.image_doubt.submit.v1");
-    expect(def?.enabled).toBe(true);
-    const run = createWorkflowRun({
-      workflow_id: "student.image_doubt.submit.v1",
-      run_id: "sub-1",
-    });
-    expect(run.status).toBe("pending");
+  it("registers the submit capability without a model", () => {
     expect(getCapability("student.image_doubt.submit")?.model_policy).toBe("never");
-  });
-});
-
-describe("Benchmark CI scaffold", () => {
-  it("evaluates every built-in fixture", () => {
-    for (const f of BUILTIN_BENCHMARK_FIXTURES) {
-      const r = evaluateFixture(f);
-      expect(r.passed, `${f.suite_id}/${f.fixture_key}: ${r.detail}`).toBe(true);
-    }
-  });
-
-  it("runs suite aggregate and passes critical gate", () => {
-    const run = runBuiltinBenchmarkSuites();
-    expect(run.fixture_results.every((r) => r.passed)).toBe(true);
-    for (const sid of criticalSuiteIds()) {
-      expect(run.suite_results[sid], sid).toBe(true);
-    }
-    expect(run.gate.gate_passed).toBe(true);
-    expect(run.gate.missing_suites).toEqual([]);
-  });
-
-  it("gate fails when a critical suite is missing", () => {
-    const gate = evaluateBenchmarkGate({
-      candidate_label: "bad",
-      latest_results: { hallucination: true, curriculum_grounding: true },
-    });
-    expect(gate.gate_passed).toBe(false);
-    expect(gate.missing_suites).toContain("safety_privacy");
   });
 });
 
@@ -333,7 +255,7 @@ describe("Teacher paper generate_outline", () => {
     expect(outline.outline_text).toBeNull();
   });
 
-  it("has prompt library + capability + route policy", () => {
+  it("has prompt library + capability", () => {
     expect(getBuiltinPrompt("teacher.question_paper.generate_outline")?.status).toBe(
       "production",
     );
@@ -342,23 +264,17 @@ describe("Teacher paper generate_outline", () => {
     expect(cap?.allowed_roles).toEqual(["teacher", "admin"]);
     expect(cap?.allowed_roles.includes("super_admin" as never)).toBe(false);
 
-    const on = planRoute("teacher.question_paper.generate_outline", FLAGS_ON);
-    if (!("rejected" in on)) expect(on.may_call_model).toBe(true);
-
-    const off = planRoute("teacher.question_paper.generate_outline", FLAGS_GEN_OFF);
-    if (!("rejected" in off)) {
-      expect(off.may_call_model).toBe(false);
-      expect(off.decision_if_ready).toBe("answered_facts_only");
-    }
-
     const plan = planQuestionPaper({
       subject: "Math",
       total_marks: 10,
       chapters: [{ name: "A" }],
     });
-    expect(buildOutlineSectionsFromPlan(plan)).toHaveLength(1);
+    const outline = buildQuestionPaperOutline({
+      planInput: { subject: "Math", total_marks: 10, chapters: [{ name: "A" }] },
+      may_call_model: false,
+    });
+    expect(outline.sections).toHaveLength(1);
     expect(renderOutlinePrompt(plan).system.length).toBeGreaterThan(20);
-    expect(getWorkflowDefinition("teacher.question_paper.outline.v1")?.enabled).toBe(true);
   });
 });
 
@@ -396,27 +312,21 @@ describe("Principal school health brief", () => {
     expect(brief.completeness).toBeGreaterThan(0.5);
   });
 
-  it("registers capability, session scope, workflow", () => {
+  it("registers capability and session scope", () => {
     const cap = getCapability("principal.school.health_brief");
     expect(cap?.route_class).toBe("deterministic_insight");
     expect(cap?.model_policy).toBe("never");
     expect(cap?.allowed_roles).toEqual(["principal", "admin"]);
-    expect(SESSION_MEMORY_CAPABILITIES["principal.school.health_brief"]).toBe(
+    expect(sessionScopeForCapability("principal.school.health_brief")).toBe(
       "principal_analytics",
     );
-    expect(getWorkflowDefinition("principal.school.health_brief.v1")?.enabled).toBe(true);
     expect(mapIntentToCapability("Show me the school health brief")?.feature_id).toBe(
       "principal.school.health_brief",
     );
-    const plan = planRoute("principal.school.health_brief", FLAGS_ON);
-    if (!("rejected" in plan)) {
-      expect(plan.may_call_model).toBe(false);
-      expect(plan.decision_if_ready).toBe("answered_deterministic");
-    }
   });
 });
 
-describe("No super_admin + multi-agent still reserved", () => {
+describe("No super_admin", () => {
   it("new capabilities exclude super_admin", () => {
     for (const id of [
       "student.image_doubt.submit",
@@ -426,11 +336,5 @@ describe("No super_admin + multi-agent still reserved", () => {
       const roles = getCapability(id)?.allowed_roles ?? [];
       expect(roles.includes("super_admin" as never)).toBe(false);
     }
-  });
-
-  it("full image-doubt tutoring workflow remains disabled", () => {
-    expect(getWorkflowDefinition("student.image_doubt.v1")?.enabled).toBe(false);
-    expect(getWorkflowDefinition("teacher.question_paper.v1")?.enabled).toBe(false);
-    expect(listWorkflowDefinitions().length).toBeGreaterThanOrEqual(6);
   });
 });

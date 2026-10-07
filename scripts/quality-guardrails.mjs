@@ -10,7 +10,6 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const ALLOWLIST = new Set([
-  "src/lib/presentationMode.ts",
   "src/gurukul/emptyStudent.ts",
   "src/lib/productFeatureFlags.ts",
   "src/lib/productFeatureFlags.test.ts",
@@ -74,13 +73,6 @@ function isAllowlisted(relPath) {
   const abs = path.join(root, relPath);
   if (!fs.existsSync(abs)) return false;
   return /DESIGN-ONLY/i.test(fs.readFileSync(abs, "utf8").slice(0, 600));
-}
-
-{
-  const pm = fs.readFileSync(path.join(root, "src/lib/presentationMode.ts"), "utf8");
-  if (!/export\s+const\s+PRESENTATION_MODE\s*=\s*false\s*;/.test(pm)) {
-    failures.push("PRESENTATION_MODE must be false");
-  }
 }
 
 {

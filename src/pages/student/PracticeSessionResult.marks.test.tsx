@@ -63,7 +63,6 @@ async function openQuestions(text: string) {
   fireEvent.click(await screen.findByRole("tab", { name: "Questions" }));
   await waitFor(() => expect(screen.getByText(text)).toBeInTheDocument());
 }
-const openSummary = () => fireEvent.click(screen.getByRole("tab", { name: "Summary" }));
 const card = (question: string) => screen.getByText(question).closest("div.p-5") as HTMLElement;
 const barOf = (question: string) => within(card(question)).queryByTestId("mark-bar");
 

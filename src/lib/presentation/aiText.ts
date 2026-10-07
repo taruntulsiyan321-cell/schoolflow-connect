@@ -3,8 +3,9 @@
  *
  * WHY THIS EXISTS
  * ---------------
- * `src/academic/ai/responseValidator.ts#validateModelResponse` exists, but an
- * audit of every `.tsx` render path found it has zero call sites in the UI.
+ * `validateModelResponse` (supabase/functions/_shared/responseValidator.ts)
+ * checks a model's facts on the edge, but an audit of every `.tsx` render path
+ * found nothing screened model output on the way to the UI.
  * Model output therefore reached `NovaMarkdown` — and several plain `{...}`
  * text nodes — completely unscreened.
  *

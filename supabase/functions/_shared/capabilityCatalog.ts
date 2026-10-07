@@ -1,5 +1,6 @@
 /**
- * Capability Catalog — edge mirror of src/academic/ai/capabilityCatalog.ts
+ * Capability Catalog — registered AI features and preferred routes. The one
+ * catalogue: ai-gateway routes by it, and the app imports getCapability from it.
  */
 
 type ModelPolicy = "never" | "optional_explain" | "required_when_budget";

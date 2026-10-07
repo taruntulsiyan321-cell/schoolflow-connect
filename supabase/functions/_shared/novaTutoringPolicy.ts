@@ -1,5 +1,5 @@
 /**
- * Edge Nova tutoring policy — mirror of src/academic/ai/novaTutoringPolicy.ts
+ * Nova tutoring policy — Socratic mode + subject-aware semantic match helpers.
  */
 import {
   canonicalizeSubjectLabel,

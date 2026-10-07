@@ -91,10 +91,6 @@ function tokenize(input: string): Seg[] {
   return segs;
 }
 
-function render(html: string, kind: "inline" | "block") {
-  return { __html: html };
-}
-
 export function MathText({ text, className, block }: Props) {
   // `text` is declared as string, but the values that actually reach it come
   // from `any`-typed question payloads (`options: any`, `correct: any`) and
@@ -123,7 +119,7 @@ export function MathText({ text, className, block }: Props) {
             <span
               key={idx}
               className={s.kind === "block" ? "block my-2" : "inline-block align-middle"}
-              dangerouslySetInnerHTML={render(html, s.kind)}
+              dangerouslySetInnerHTML={{ __html: html }}
             />
           );
         } catch {

@@ -2,13 +2,14 @@
  * Nova Context Pack v1 — unit tests (learning facts only; no school records).
  */
 import { describe, expect, it } from "vitest";
-import { buildContextPack, packForModel } from "./contextBuilder";
+import { buildContextPack, packForModel } from "../../../supabase/functions/_shared/contextBuilder.ts";
 import {
   evidenceFromNovaLearningFacts,
   validateModelResponse,
-} from "./responseValidator";
-import { getBuiltinPrompt, renderPromptTemplate } from "./promptLibrary";
-import { getCapability } from "./capabilityCatalog";
+} from "../../../supabase/functions/_shared/responseValidator.ts";
+import { getBuiltinPrompt, renderPromptTemplate } from "../../../supabase/functions/_shared/promptLibrary.ts";
+import { getCapability } from "../../../supabase/functions/_shared/capabilityCatalog.ts";
+import { buildEieProjection } from "../../../supabase/functions/_shared/eieProjection.ts";
 
 const AE = {
   student_profile: {
@@ -65,12 +66,35 @@ const EIE = {
 
 describe("Nova Context Pack v1", () => {
   it("carries no strength field into the model context (§10.8)", () => {
-    // Asserted on the serialised pack rather than on named properties: the rule
-    // is that no strength reaches the model, and a field renamed to
-    // top_concepts would pass a property-name check while violating it.
-    const serialised = JSON.stringify({ ae: AE, eie: EIE });
-    expect(serialised).not.toMatch(/strong|master(ed)?"|proficient|excellent/i);
-    // The positive, so an empty fixture cannot pass the line above: the weak
+    // Built the way Nova chat builds it: the EIE projection ai-gateway computes
+    // from mastery rows that INCLUDE high concepts, spread into the pack. This
+    // test used to serialise its own fixture, which held no strength to find,
+    // so it passed while the real projection handed the model strong_concepts.
+    const eie = buildEieProjection({
+      studentId: "s1",
+      schoolId: "sch1",
+      mastery: [
+        { subject: "Math", concept: "Integration", mastery_score: 40 },
+        { subject: "Math", concept: "Matrices", mastery_score: 93 },
+        { subject: "Physics", concept: "Optics", mastery_score: 81 },
+      ],
+      revisionQueue: [],
+    });
+    const { attendance_risk: _a, homework_consistency: _h, ...eieLearning } = eie;
+    const serialised = packForModel(
+      buildContextPack({
+        capability: "student.nova.chat",
+        request_text: "Help me revise",
+        ae: AE,
+        eie: eieLearning,
+        tier_signals: { facts_complete: true },
+      }),
+    );
+    // Asserted on the serialised pack rather than on named properties: a field
+    // renamed to top_concepts would pass a property-name check while violating it.
+    expect(serialised).not.toMatch(/strong|mastered|proficient|excellent/i);
+    expect(serialised).not.toMatch(/Matrices|Optics/);
+    // The positive, so an empty pack cannot pass the lines above: the weak
     // side must still be present, because that is what the pack exists to carry.
     expect(serialised).toMatch(/weak_concepts/);
     expect(serialised).toMatch(/Integration/);
@@ -118,7 +142,13 @@ describe("Nova Context Pack v1", () => {
     expect(json).toContain("62");
     expect(json).toContain("Integration");
     expect(json).toContain("study_streak");
-    expect(json).not.toMatch(/attendance_pct|average_pct|pending_count.*homework|events/i);
+    // The FACTS carry no school record. The rules beside them name the records
+    // they forbid ("school calendar events/holidays"), so they are set aside.
+    const { system_rules, ...facts } = JSON.parse(json) as Record<string, unknown>;
+    expect(system_rules).toBeDefined();
+    const factsJson = JSON.stringify(facts);
+    expect(factsJson).toContain("Integration");
+    expect(factsJson).not.toMatch(/attendance_pct|average_pct|pending_count.*homework|events/i);
     expect(json).not.toMatch(/Arjun|1382|Level 14/i);
   });
 

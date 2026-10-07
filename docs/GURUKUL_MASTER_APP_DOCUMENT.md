@@ -157,7 +157,7 @@ flowchart TB
 | Tests | Vitest + Testing Library |
 | Migrations | `supabase/migrations/` (timestamped SQL; user applies via project workflow) |
 
-Project scripts of note: `db:migrate`, `db:types`, `test`, `test:ai-benchmarks`, `functions:deploy-gateway`. The standalone `ai-*` agent functions (battle report, concept report, explain, DPP gen, recovery/revision/learning-pattern/coach agents) exist separately from `ai-gateway` but now route through OpenRouter via `_shared/structuredCompletion.ts`, not Gemini — Gemini was fully removed on 2026-08-08.
+Project scripts of note: `db:migrate`, `db:types`, `test`, `functions:deploy-gateway`. The standalone `ai-*` agent functions (battle report, concept report, explain, DPP gen, recovery/revision/learning-pattern/coach agents) exist separately from `ai-gateway` but now route through OpenRouter via `_shared/structuredCompletion.ts`, not Gemini — Gemini was fully removed on 2026-08-08.
 
 ---
 

@@ -1,6 +1,13 @@
 /**
- * Edge Recommendation Engine v1 — mirrors src/academic/ai/recommendationEngine.ts
+ * Recommendation Engine v1 — next-best actions from EIE seeds (and, for
+ * parent/staff surfaces only, office facts). Deterministic: no model.
+ *
+ * A seed whose concept, subject or topic is a placeholder ("General", "Daily",
+ * "Topic", …) is not a recommendation. Before this filter the weakest such row
+ * became "Practise General" at the top of the list.
  */
+
+import { isPlaceholderLabel } from "./novaContextBuilder.ts";
 
 type RecommendationAction = {
   action_id: string;
@@ -53,7 +60,7 @@ export function buildRecommendationPackage(input: {
   const actions: RecommendationAction[] = [];
 
   const weakest = [...(input.weak_concepts ?? [])]
-    .filter((c) => c && c.concept)
+    .filter((c) => c && !isPlaceholderLabel(c.concept) && !isPlaceholderLabel(c.subject))
     .sort((a, b) => (a.mastery_score ?? 0) - (b.mastery_score ?? 0))[0];
 
   if (weakest) {
@@ -72,12 +79,16 @@ export function buildRecommendationPackage(input: {
     });
   }
 
+  // The label a revision seed is shown by: its topic, else its chapter, else its
+  // subject — the first that is real.
+  const revisionLabel = (r: { topic?: string | null; chapter?: string | null; subject: string }) =>
+    [r.topic, r.chapter, r.subject].find((x) => !isPlaceholderLabel(x)) ?? null;
   const topRev = [...(input.revision_priority ?? [])]
-    .filter((r) => r && (r.topic || r.subject))
+    .filter((r) => r && !isPlaceholderLabel(r.subject) && revisionLabel(r) !== null)
     .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))[0];
 
   if (topRev) {
-    const topic = topRev.topic ?? topRev.subject;
+    const topic = revisionLabel(topRev);
     actions.push({
       action_id: `revision:${topRev.subject}:${topic}`,
       kind: "revision_priority",

@@ -194,10 +194,6 @@ function isLikelyJwt(value: string): boolean {
  * Prefer explicit access-token fields, then any JWT-shaped candidate, then
  * a bare `message`/`token` string as last resort.
  */
-export function extractAccessToken(data: Msg91WidgetSuccessData | null | undefined): string | null {
-  return extractAccessTokenMeta(data)?.token ?? null;
-}
-
 /** Keys we inspect for an MSG91 access-token, in preference order. */
 const ACCESS_TOKEN_KEYS = ["access-token", "accessToken", "token", "message"] as const;
 

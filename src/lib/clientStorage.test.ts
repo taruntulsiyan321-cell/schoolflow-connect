@@ -2,8 +2,6 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   novaConversationsKey,
   mistakeBookmarksKey,
-  recoverySuccessHistoryKey,
-  appSettingsKey,
   clearAppStorage,
 } from "./clientStorage";
 
@@ -12,7 +10,7 @@ const OTHER = { userId: "user-2", schoolId: "school-2" };
 
 describe("clientStorage keys", () => {
   it("scopes personal keys by both school and user", () => {
-    for (const build of [novaConversationsKey, mistakeBookmarksKey, recoverySuccessHistoryKey]) {
+    for (const build of [novaConversationsKey, mistakeBookmarksKey]) {
       expect(build(IDENTITY)).not.toBe(build(OTHER));
       expect(build(IDENTITY)).toContain("school-1");
       expect(build(IDENTITY)).toContain("user-1");
@@ -23,11 +21,6 @@ describe("clientStorage keys", () => {
     expect(novaConversationsKey({ userId: "user-1" })).toBeNull();
     expect(novaConversationsKey({ schoolId: "school-1" })).toBeNull();
     expect(novaConversationsKey({})).toBeNull();
-    expect(appSettingsKey(null)).toBeNull();
-  });
-
-  it("scopes app settings by school", () => {
-    expect(appSettingsKey("school-1")).not.toBe(appSettingsKey("school-2"));
   });
 });
 
@@ -38,8 +31,6 @@ describe("clearAppStorage", () => {
     const written = [
       novaConversationsKey(IDENTITY),
       mistakeBookmarksKey(IDENTITY),
-      recoverySuccessHistoryKey(IDENTITY),
-      appSettingsKey("school-1"),
     ];
     for (const key of written) localStorage.setItem(key as string, "x");
 

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coverage, type MapChapter, type MapTopic, placeOnMap, slippingTopics, subjectsOnMap, type SyllabusMap } from "./syllabusMap";
-import { MIN_OBSERVATIONS_FOR_VERDICT } from "./thresholds";
+import { coverage, type MapChapter, type MapTopic, slippingTopics, subjectsOnMap, type SyllabusMap } from "./syllabusMap";
 import { TREND_DELTA_POINTS } from "../recovery/constants";
 
 const ch = (over: Partial<MapChapter>): MapChapter => ({
@@ -14,14 +13,6 @@ const tp = (over: Partial<MapTopic>): MapTopic => ({
 const map = (chapters: MapChapter[], topics: MapTopic[] = []): SyllabusMap => ({ examFound: true, recentDays: 14, chapters, topics, topicsLocked: false });
 
 describe("the syllabus as a map", () => {
-  it("a chapter is not practised, started, or on the ladder — never 'strong'", () => {
-    expect(MIN_OBSERVATIONS_FOR_VERDICT).toBe(5);
-    expect(placeOnMap({ answered: 0, correct: 0 })).toEqual({ kind: "untouched" });
-    expect(placeOnMap({ answered: 4, correct: 4 })).toEqual({ kind: "started", answered: 4 });
-    expect(placeOnMap({ answered: 10, correct: 3 })).toEqual({ kind: "judged", accuracy: 30, band: "low" });
-    expect(placeOnMap({ answered: 10, correct: 10 })).toEqual({ kind: "judged", accuracy: 100, band: "high" });
-  });
-
   it("by subject, in syllabus order, with how many chapters each has been practised in", () => {
     const m = map([
       ch({ chapterId: "a2", chapter: "Admission", sequence: 2, answered: 3 }),

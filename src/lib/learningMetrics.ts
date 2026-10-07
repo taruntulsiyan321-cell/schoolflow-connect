@@ -1,88 +1,39 @@
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 
-
 /**
- * Practice-only accuracy SSOT, for anything labelled PRACTICE_ACCURACY_LABEL.
+ * Practice-only accuracy SSOT, for anything labelled PRACTICE_ACCURACY_LABEL —
+ * or null when the snapshot carries none (ruling 8: absent data is a dash,
+ * never a zero).
+ *
  * Source: `rpc_student_academic_snapshot` → `exam_readiness.practice_accuracy_pct`,
  * which `_exam_readiness()` computes straight from `question_attempts`.
  *
  * Deliberately NOT `accuracy_pct`: that field is a *blend* of Test accuracy and
  * practice accuracy (`_acc := (test_acc + practice_acc) / 2`), so reading it here
  * reported a number the student never scored in practice — e.g. 100% Test + 66.7%
- * practice surfaced as an "83% practice accuracy" tile. Use
- * `overallAccuracyFromSnapshot` when the blend is what's actually wanted.
+ * practice surfaced as an "83% practice accuracy" tile. No screen shows the
+ * blend.
+ *
+ * undefined and null mean DIFFERENT things for `practice_accuracy_pct`:
+ *
+ *   key ABSENT   a snapshot predating practice_accuracy_pct — fall back to the
+ *                blended accuracy_pct, which is why that fallback exists
+ *   key NULL     a current snapshot saying there is no practice accuracy,
+ *                because there were no attempts. Falling back here would
+ *                relabel the blend as a practice figure.
+ *
+ * This used to be two functions — a number reader that fell back on null too
+ * (`?? accuracy_pct`) and a separate "is there one?" check that did not — so
+ * the fact had two homes that disagreed, and only the guard at the one call
+ * site kept the wrong one from showing.
  *
  * Never average charts subjects, mastery attempt ratios, or battle Q&A counters here.
  * XP / level / study streak remain ProgressionService (`rpc_get_student_progression`).
  */
-export function practiceAccuracyFromSnapshot(snap: AcademicSnapshot | null | undefined): number {
+export function practiceAccuracyFromSnapshot(snap: AcademicSnapshot | null | undefined): number | null {
   const readiness = snap?.exam_readiness;
-  // Fall back to the blend only for snapshots predating practice_accuracy_pct.
-  const raw = readiness?.practice_accuracy_pct ?? readiness?.accuracy_pct;
-  if (raw == null || Number.isNaN(Number(raw))) return 0;
+  if (!readiness) return null;
+  const raw = "practice_accuracy_pct" in readiness ? readiness.practice_accuracy_pct : readiness.accuracy_pct;
+  if (raw == null || Number.isNaN(Number(raw))) return null;
   return Math.round(Number(raw));
 }
-
-/**
- * Does the snapshot actually CARRY these figures?
- *
- * practiceAccuracyFromSnapshot returns 0 when the underlying value is null,
- * and its call sites depend on getting
- * a number. That contract stays. What was missing is a way to ask whether the
- * number means anything — and a student who has never practised showing
- * "Practice accuracy: 0%" is the same defect as a session with nothing
- * attempted being scored zero.
- *
- * These live here, beside the metrics they qualify, rather than being
- * re-derived at each screen. A caller that re-reads exam_readiness itself to
- * decide is a second definition of the same fact.
- */
-export function hasPracticeAccuracy(snap: AcademicSnapshot | null | undefined): boolean {
-  const readiness = snap?.exam_readiness;
-  if (!readiness) return false;
-  // undefined and null mean DIFFERENT things here, and collapsing them with ??
-  // is what kept showing "Practice accuracy: 0%" to a student with zero
-  // attempts even after the RPC started emitting null:
-  //
-  //   key ABSENT   a snapshot predating practice_accuracy_pct — fall back to
-  //                the blended accuracy_pct, which is why that fallback exists
-  //   key NULL     a current snapshot saying there is no practice accuracy,
-  //                because there were no attempts. Falling back here would
-  //                relabel the blended figure as a practice figure — the exact
-  //                mislabelling the comment on the blend warns about.
-  if ("practice_accuracy_pct" in readiness) {
-    const raw = readiness.practice_accuracy_pct;
-    return raw != null && !Number.isNaN(Number(raw));
-  }
-  const legacy = readiness.accuracy_pct;
-  return legacy != null && !Number.isNaN(Number(legacy));
-}
-
-
-/**
- * Blended Test + practice accuracy — the "overall accuracy" used by Analysis totals
- * and Battleground chrome. Distinct metric from practiceAccuracyFromSnapshot; these
- * two were aliased to the same function, which is what mislabelled the practice tiles.
- */
-export function overallAccuracyFromSnapshot(snap: AcademicSnapshot | null | undefined): number {
-  const raw = snap?.exam_readiness?.accuracy_pct;
-  if (raw == null || Number.isNaN(Number(raw))) return 0;
-  return Math.round(Number(raw));
-}
-
-/**
- * Does the snapshot actually carry a blended accuracy?
- *
- * The sibling of `hasPracticeAccuracy`, and it exists for the same reason:
- * `overallAccuracyFromSnapshot` returns 0 when the value is null, so a student
- * who has never attempted anything reads as a student who got everything
- * wrong. Ruling 8 — absent data is an em dash, never a zero.
- */
-export function hasOverallAccuracy(snap: AcademicSnapshot | null | undefined): boolean {
-  const raw = snap?.exam_readiness?.accuracy_pct;
-  return raw != null && !Number.isNaN(Number(raw));
-}
-
-
-
-

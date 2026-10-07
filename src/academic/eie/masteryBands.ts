@@ -38,10 +38,6 @@ export function bandFromScore(score: number): MasteryBand {
   return "very_high";
 }
 
-export function isWeakBand(band: MasteryBand): boolean {
-  return band === "critical" || band === "weak";
-}
-
 /**
  * isStrongBand is DELETED, not renamed.
  *
@@ -50,7 +46,4 @@ export function isWeakBand(band: MasteryBand): boolean {
  * it to select a student's top concepts into strong_concepts. Renaming it to
  * isHighBand would have kept the capability and moved the violation one
  * identifier away.
- *
- * isWeakBand stays: the product surfaces weaknesses, and that is the whole
- * asymmetry §10.8 describes.
  */

@@ -2,11 +2,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
-import {
-  hasOverallAccuracy,
-  overallAccuracyFromSnapshot,
-  practiceAccuracyFromSnapshot,
-} from "./learningMetrics";
+import { practiceAccuracyFromSnapshot } from "./learningMetrics";
 
 /**
  * Two different accuracies, and the label has to match the one being shown.
@@ -26,45 +22,28 @@ import {
 const snap = (readiness: Record<string, unknown> | null): AcademicSnapshot =>
   ({ exam_readiness: readiness } as unknown as AcademicSnapshot);
 
-describe("the two accuracies stay two", () => {
-  it("reads the blend and the practice figure from DIFFERENT fields", () => {
-    // The positive control for this whole file: if these ever return the same
-    // number for the same snapshot, they have been aliased again — which is
-    // the original defect, not a refactor.
+describe("practice accuracy is practice alone, or absent", () => {
+  it("reads the practice field, not the blend beside it", () => {
+    // The positive control for this whole file: the two fields hold different
+    // numbers, so reading the wrong one cannot pass.
     const s = snap({ accuracy_pct: 83, practice_accuracy_pct: 66.7 });
-    expect(overallAccuracyFromSnapshot(s)).toBe(83);
     expect(practiceAccuracyFromSnapshot(s)).toBe(67);
   });
 
-  it("falls back to the blend for snapshots predating practice_accuracy_pct", () => {
-    const legacy = snap({ accuracy_pct: 83 });
-    expect(practiceAccuracyFromSnapshot(legacy)).toBe(83);
+  it("falls back to the blend only for snapshots predating practice_accuracy_pct", () => {
+    expect(practiceAccuracyFromSnapshot(snap({ accuracy_pct: 83 }))).toBe(83);
   });
 
-  it("does NOT fall back when the key is present and null", () => {
-    // undefined and null mean different things here: null is a current
-    // snapshot saying there IS no practice accuracy. Falling back would
-    // relabel the blend as a practice figure.
-    const noPractice = snap({ accuracy_pct: 83, practice_accuracy_pct: null });
-    expect(practiceAccuracyFromSnapshot(noPractice)).toBe(83);
-    expect(overallAccuracyFromSnapshot(noPractice)).toBe(83);
-  });
-});
-
-describe("hasOverallAccuracy — ruling 8", () => {
-  it("is false when the snapshot carries no accuracy", () => {
-    expect(hasOverallAccuracy(snap({ accuracy_pct: null }))).toBe(false);
-    expect(hasOverallAccuracy(snap(null))).toBe(false);
-    expect(hasOverallAccuracy(null)).toBe(false);
+  it("does NOT fall back when the key is present and null — there is none (ruling 8)", () => {
+    // null is a current snapshot saying there IS no practice accuracy. Falling
+    // back would relabel the blend as a practice figure.
+    expect(practiceAccuracyFromSnapshot(snap({ accuracy_pct: 83, practice_accuracy_pct: null }))).toBeNull();
+    expect(practiceAccuracyFromSnapshot(snap(null))).toBeNull();
+    expect(practiceAccuracyFromSnapshot(null)).toBeNull();
   });
 
-  it("is true when there IS one, including a real zero (positive control)", () => {
-    // Returning false unconditionally would satisfy every assertion above.
-    expect(hasOverallAccuracy(snap({ accuracy_pct: 83 }))).toBe(true);
-    // A student who attempted things and got none right scored 0. That is a
-    // mark, not an absence, and it must still render as 0%.
-    expect(hasOverallAccuracy(snap({ accuracy_pct: 0 }))).toBe(true);
-    expect(overallAccuracyFromSnapshot(snap({ accuracy_pct: 0 }))).toBe(0);
+  it("keeps a real zero — attempted and got none right is a mark, not an absence", () => {
+    expect(practiceAccuracyFromSnapshot(snap({ practice_accuracy_pct: 0 }))).toBe(0);
   });
 });
 
@@ -86,7 +65,7 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const BLEND = /overallAccuracyFromSnapshot|\bstats\??\.accuracy\b/;
+const BLEND = /\baccuracy_pct\b|\bstats\??\.accuracy\b/;
 const WINDOW = 320;
 
 /**
@@ -114,7 +93,7 @@ describe("no student screen labels the blend as practice accuracy", () => {
   });
 
   it('a "practice accuracy" label is never fed from the blended value', () => {
-    // The blend now reaches a screen ONLY as overallAccuracyFromSnapshot or as
+    // The blend can reach a screen only as the snapshot's `accuracy_pct` or as
     // the hook's `stats.accuracy`. The shell profile carries `practiceAccuracy`,
     // which is named for what it holds and cannot be mistaken for the blend.
     // (The WINDOW is explained on blendNextToPracticeLabel.)
@@ -150,7 +129,7 @@ describe("no student screen labels the blend as practice accuracy", () => {
     expect(blendNextToPracticeLabel(home)).toEqual([]);
     const planted = home.replace(
       'label="Practice accuracy"',
-      'label="Practice accuracy" value={overallAccuracyFromSnapshot(snapshot)}',
+      'label="Practice accuracy" value={snapshot.exam_readiness.accuracy_pct}',
     );
     expect(planted).not.toBe(home);
     expect(blendNextToPracticeLabel(planted).length).toBe(1);

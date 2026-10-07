@@ -3,11 +3,10 @@
  * (owner-approved analysis, 2026-10-03). The counts are rpc_student_syllabus_map's
  * (20261145000000); what they mean is decided here.
  *
- * §10.8: weaknesses only. A chapter is "not practised", "started" (too few
- * answers to judge) or on the accuracy ladder, whose top rung is "On track" —
- * there is no strong.
+ * §10.8: weaknesses only. A chapter is "not practised" or practised, with its
+ * answer count; a topic is slipping when it is right less often lately.
+ * Nothing here ranks what a student is good at.
  */
-import { type AccuracyBand, accuracyBand } from "./bands";
 import { mayBeJudged } from "./thresholds";
 import { TREND_DELTA_POINTS } from "../recovery/constants";
 
@@ -25,19 +24,6 @@ export type SyllabusMap = {
 };
 
 const pct = (n: number, d: number) => Math.round((n / d) * 100);
-
-export type PlaceOnMap =
-  | { kind: "untouched" }
-  | { kind: "started"; answered: number }
-  | { kind: "judged"; accuracy: number; band: AccuracyBand };
-
-/** Where a chapter or topic stands: not practised, started, or its rung — with enough answers behind it. */
-export function placeOnMap(c: Pick<Counts, "answered" | "correct">): PlaceOnMap {
-  if (c.answered <= 0) return { kind: "untouched" };
-  if (!mayBeJudged(c.answered)) return { kind: "started", answered: c.answered };
-  const accuracy = pct(c.correct, c.answered);
-  return { kind: "judged", accuracy, band: accuracyBand(accuracy) };
-}
 
 export type SubjectOnMap = { subject: string; chapters: MapChapter[]; practised: number };
 

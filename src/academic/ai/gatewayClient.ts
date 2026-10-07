@@ -8,8 +8,11 @@ import { presentAcademicLabel } from "@/lib/academicPresentation";
 import { isGenericAcademicLabel } from "@/lib/qualityGuards";
 import type { AiActorRole, AiClientRequest, AiGatewayResponse } from "./envelope";
 import { mapIntentToCapability } from "./intentMapper";
-import { getCapability } from "./capabilityCatalog";
-import { dedupeSubjects, isPlaceholderLabel } from "./novaContextBuilder";
+import { getCapability } from "../../../supabase/functions/_shared/capabilityCatalog.ts";
+import {
+  dedupeSubjects,
+  isPlaceholderLabel,
+} from "../../../supabase/functions/_shared/novaContextBuilder.ts";
 
 /** Shown when generative path is down (402 / kill switch / missing key). */
 export const AI_BILLING_UNAVAILABLE_MSG =

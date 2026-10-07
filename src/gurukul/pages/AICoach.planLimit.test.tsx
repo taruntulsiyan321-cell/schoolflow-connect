@@ -58,7 +58,7 @@ beforeEach(() => {
 describe("a Nova turn the plan refuses", () => {
   it("shows the plan notice with its reset time and a way to plans, and re-reads the plan", async () => {
     askAiCoach.mockResolvedValueOnce(REFUSAL);
-    render(<MemoryRouter><AICoach setPage={() => {}} /></MemoryRouter>);
+    render(<MemoryRouter><AICoach /></MemoryRouter>);
     fireEvent.change(screen.getByPlaceholderText(/Ask about a concept/), { target: { value: "What is goodwill?" } });
     fireEvent.click(screen.getByLabelText("Send message"));
 
@@ -75,7 +75,7 @@ describe("a Nova turn the plan refuses", () => {
       text: "Goodwill is the value of a firm's reputation.",
       response: { request_id: "r2", feature_id: "student.nova.chat", decision: "answered_model", route_class: "personalised_intelligence", used_model: true, cache_hit: false, data: { reply: "x" } },
     });
-    render(<MemoryRouter><AICoach setPage={() => {}} /></MemoryRouter>);
+    render(<MemoryRouter><AICoach /></MemoryRouter>);
     fireEvent.change(screen.getByPlaceholderText(/Ask about a concept/), { target: { value: "What is goodwill?" } });
     fireEvent.click(screen.getByLabelText("Send message"));
     // The reply shows in the bubble and in the conversation list preview.

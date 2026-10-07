@@ -1,12 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  dedupeSubjectChartPoints,
   buildSubjectRadarPoints,
-  hasXpInventFingerprint,
   isGenericAcademicLabel,
   preferRealAcademicLabel,
 } from "@/lib/qualityGuards";
-import { PRESENTATION_MODE } from "@/lib/presentationMode";
 import {
   assertStudentContext,
   evaluateStudentContext,
@@ -29,46 +26,21 @@ describe("qualityGuards — generic labels", () => {
   });
 });
 
-describe("qualityGuards — duplicate subjects", () => {
-  it("merges Maths / Math / Mathematics into one row", () => {
-    const rows = dedupeSubjectChartPoints([
-      { name: "Maths", accuracy: 80, attempts: 10 },
-      { name: "Mathematics", accuracy: 60, attempts: 10 },
-      { name: "Math", accuracy: 70, attempts: 5 },
-      { name: "Subject", accuracy: 99, attempts: 99 },
-      { name: " topic ", accuracy: 99, attempts: 99 },
-      { name: "DAILY", accuracy: 99, attempts: 99 },
-      { name: "General", accuracy: 99, attempts: 99 },
+describe("qualityGuards — radar axes", () => {
+  it("gives every subject its own tick and drops placeholders", () => {
+    // "Business Studies" and "Business Economics" shorten to the same initials,
+    // and "Biology"/"Biotechnology" to the same four letters.
+    const radar = buildSubjectRadarPoints([
+      { name: "Business Studies", score: 80 },
+      { name: "Business Economics", score: 60 },
+      { name: "Biology", score: 70 },
+      { name: "Biotechnology", score: 65 },
+      { name: "Daily", score: 50 },
     ]);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].name).toBe("Mathematics");
-    expect(rows[0].attempts).toBe(25);
-    expect(rows[0].accuracy).toBe(Math.round((80 * 10 + 60 * 10 + 70 * 5) / 25));
-  });
-
-  it("radar ticks stay unique after alias merge", () => {
-    const subjects = dedupeSubjectChartPoints([
-      { name: "Maths", accuracy: 80, attempts: 10 },
-      { name: "Mathematics", accuracy: 60, attempts: 10 },
-      { name: "Accountancy", accuracy: 70, attempts: 8 },
-      { name: "Daily", accuracy: 50, attempts: 4 },
-    ]);
-    const radar = buildSubjectRadarPoints(subjects.map((s) => ({ name: s.name, score: s.accuracy })));
-    expect(radar).toHaveLength(2);
+    expect(radar).toHaveLength(4);
     const ticks = radar.map((r) => r.subject.toLowerCase());
     expect(new Set(ticks).size).toBe(ticks.length);
     expect(radar.every((r) => !isGenericAcademicLabel(r.fullName))).toBe(true);
-  });
-});
-
-describe("qualityGuards — XP invent + presentation", () => {
-  it("detects demo XP fingerprints", () => {
-    expect(hasXpInventFingerprint('const s = { xp: 1382, level: 14 }')).toBe(true);
-    expect(hasXpInventFingerprint('const s = { xp: 0, level: 1 }')).toBe(false);
-  });
-
-  it("PRESENTATION_MODE stays false", () => {
-    expect(PRESENTATION_MODE).toBe(false);
   });
 });
 

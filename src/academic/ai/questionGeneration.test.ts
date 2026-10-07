@@ -1,7 +1,8 @@
+/**
+ * The question generator dpp-generate-questions and ai-gateway run — tested
+ * directly, so there is no client copy to keep in step with it.
+ */
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { stripComments } from "@/test/stripComments";
 import {
   buildQuestionGenerationRequest,
   generationTokenBudget,
@@ -11,41 +12,7 @@ import {
   MIN_GENERATION_TOKENS,
   MAX_GENERATION_TOKENS,
   TOKENS_PER_QUESTION,
-} from "./questionGeneration";
-
-const MARKER = "// ── SHARED BODY (parity-checked";
-
-function bodyOf(path: string): string {
-  const text = readFileSync(join(process.cwd(), path), "utf8");
-  const ix = text.indexOf(MARKER);
-  if (ix < 0) throw new Error(`${path}: the SHARED BODY marker is missing`);
-  // Rule 29: strip comments in BOTH directions before comparing, so a comment
-  // edit in one copy is not reported as drift and a real edit hiding behind a
-  // comment cannot pass.
-  return stripComments(text.slice(ix))
-    .split(/\r?\n/)
-    .map((l) => l.trimEnd())
-    .filter((l) => l.trim() !== "")
-    .join("\n");
-}
-
-describe("the generator pair cannot drift", () => {
-  const CLIENT = "src/academic/ai/questionGeneration.ts";
-  const DENO = "supabase/functions/_shared/questionGenerator.ts";
-
-  it("the Deno copy is identical to the client copy below the marker", () => {
-    expect(bodyOf(DENO)).toBe(bodyOf(CLIENT));
-  });
-
-  // Without this, a stripper that silently returned "" would make the
-  // comparison above pass on two completely different files (G11).
-  it("the comparison is looking at real code, not an empty string", () => {
-    const body = bodyOf(CLIENT);
-    expect(body.length).toBeGreaterThan(1000);
-    expect(body).toContain("buildQuestionGenerationRequest");
-    expect(body).toContain("rejectionReason");
-  });
-});
+} from "../../../supabase/functions/_shared/questionGenerator.ts";
 
 describe("generationTokenBudget", () => {
   it("gives a long answer materially more room than an MCQ", () => {

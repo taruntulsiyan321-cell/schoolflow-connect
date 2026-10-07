@@ -10,7 +10,7 @@ import {
   type AiActorRole,
 } from "./capabilityCatalog.ts";
 import { completeWithPromptLibrary, isOpenRouterConfigured } from "./modelRouter.ts";
-import { buildEieProjection } from "./eieProjection.ts";
+import { buildEieProjection, findNamedConcept } from "./eieProjection.ts";
 import { buildContextPack, packForModel } from "./contextBuilder.ts";
 import { dedupeSubjects, isPlaceholderLabel } from "./novaContextBuilder.ts";
 import {
@@ -845,24 +845,48 @@ async function fetchEie(
   });
 }
 
-function pickConceptFromEie(
+/**
+ * The concept a concept-explain request is about: the tracked concept the
+ * student NAMES, in any band; when they name none, their weakest. It used to
+ * search only the projection's weak and strong lists, so a concept in between
+ * was answered with the weakest concept's facts, and the strong list is gone
+ * (§10.8 — see eieProjection.ts). The same gate as fetchEie: mastery is read
+ * for the student and nobody else.
+ */
+async function pickConcept(
+  admin: SupabaseClient,
+  schoolId: string,
+  studentId: string,
+  actorRole: string,
   eie: Awaited<ReturnType<typeof fetchEie>>,
   inputText?: string,
-): {
+): Promise<{
   name: string;
   subject: string;
   chapter: string | null;
   mastery_score: number;
   band: string;
   mistake_count: number;
-} | null {
-  const text = (inputText ?? "").toLowerCase();
-  const all = [
-    ...(eie.weak_concepts ?? []),
-    ...(eie.strong_concepts ?? []),
-  ];
-  const hit = all.find((c) => text.includes(String(c.concept).toLowerCase()));
-  const chosen = hit ?? eie.weak_concepts?.[0] ?? all[0];
+} | null> {
+  let named: ReturnType<typeof findNamedConcept> = null;
+  if (actorRole === "student" && (inputText ?? "").trim()) {
+    const { data: student } = await admin
+      .from("students")
+      .select("user_id")
+      .eq("id", studentId)
+      .eq("school_id", schoolId)
+      .maybeSingle();
+    if (student?.user_id) {
+      const { data: rows } = await admin
+        .from("concept_mastery")
+        .select("subject, chapter, concept, mastery_score, mistake_count")
+        .eq("user_id", String(student.user_id))
+        .eq("school_id", schoolId)
+        .limit(200);
+      named = findNamedConcept(rows ?? [], inputText);
+    }
+  }
+  const chosen = named ?? eie.weak_concepts?.[0];
   if (!chosen) return null;
   return {
     name: chosen.concept,
@@ -3246,7 +3270,14 @@ export async function routeAiRequest(
         const eie = (await withCache(await probeEie(admin, req.actor.schoolId, studentId, req.actor.role), () =>
           fetchEie(admin, req.actor.schoolId, studentId, req.actor.role),
         )) as Awaited<ReturnType<typeof fetchEie>>;
-        const concept = pickConceptFromEie(eie, req.input_text);
+        const concept = await pickConcept(
+          admin,
+          req.actor.schoolId,
+          studentId,
+          req.actor.role,
+          eie,
+          req.input_text,
+        );
 
         // Retrieve-before-model: KMS-approved chunks when present
         const retrieveQuery = (req.input_text ?? concept?.name ?? "").trim();
@@ -3893,7 +3924,7 @@ export async function routeAiRequest(
         };
         const factsEmpty =
           factsBundle.completeness < 0.25 &&
-          !(eie.weak_concepts?.length || eie.strong_concepts?.length) &&
+          !(eie.total_tracked > 0) &&
           // practice_sessions is present only for the student themselves; for a
           // parent or teacher its absence is not evidence of emptiness, so it only
           // counts toward "no facts" when it was actually supplied.

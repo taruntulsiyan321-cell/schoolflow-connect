@@ -1,20 +1,68 @@
 /**
- * Edge EIE projection — mirrors src/academic/eie (no LLM calculation).
+ * EIE projection — mastery bands, weak concepts and revision priority from a
+ * student's concept_mastery and revision_queue rows. No LLM calculation.
+ *
+ * §10.8: a band describes the FIGURE, never the child, so no band reads
+ * strong or mastered; and the projection selects weaknesses only. It used to
+ * carry `strong_concepts` — the student's best concepts, selected — and Nova
+ * chat spread the whole projection into the model's facts, so the model was
+ * handed the selection the rule forbids. The client's copy had been fixed
+ * (src/academic/eie/masteryBands.ts); this one, the one that runs, had not.
  */
 
 const EIE_ALGORITHM_ID = "eie.mastery.v1";
 
-type MasteryBand = "critical" | "weak" | "developing" | "strong" | "mastered";
+type MasteryBand = "critical" | "weak" | "developing" | "high" | "very_high";
 
 export type RiskBand = "low" | "moderate" | "elevated" | "high" | "unknown";
 
-function bandFromScore(score: number): MasteryBand {
+/** The same cuts as src/academic/eie/masteryBands.ts: 40, 60, 75, 90. */
+export function bandFromScore(score: number): MasteryBand {
   const s = Number.isFinite(score) ? score : 0;
   if (s < 40) return "critical";
   if (s < 60) return "weak";
   if (s < 75) return "developing";
-  if (s < 90) return "strong";
-  return "mastered";
+  if (s < 90) return "high";
+  return "very_high";
+}
+
+type MasteryRow = {
+  subject: string;
+  chapter?: string | null;
+  concept: string;
+  mastery_score: number;
+  mistake_count?: number;
+};
+
+/** One concept as every reader of the projection sees it. */
+function conceptOf(m: MasteryRow) {
+  const mastery_score = Number(m.mastery_score) || 0;
+  return {
+    subject: m.subject,
+    chapter: m.chapter ?? null,
+    concept: m.concept,
+    mastery_score,
+    band: bandFromScore(mastery_score),
+    mistake_count: m.mistake_count ?? 0,
+  };
+}
+
+/**
+ * The tracked concept a request names, in ANY band — the longest name found in
+ * the text, so "Integration by parts" wins over "Integration". Null when the
+ * text names none of them. This is a lookup, not a selection: it returns what
+ * the student asked about, whatever its figure.
+ */
+export function findNamedConcept(rows: MasteryRow[], text: string | null | undefined) {
+  const haystack = (text ?? "").toLowerCase();
+  if (!haystack.trim()) return null;
+  const named = rows
+    .filter((r) => {
+      const name = String(r.concept ?? "").trim().toLowerCase();
+      return name.length > 2 && haystack.includes(name);
+    })
+    .sort((a, b) => String(b.concept).length - String(a.concept).length)[0];
+  return named ? conceptOf(named) : null;
 }
 
 function clampScore(n: number): number {
@@ -113,35 +161,20 @@ export function buildEieProjection(input: {
   attendance_pct?: number | null;
   homework_completion_pct?: number | null;
 }) {
-  const concepts = input.mastery.map((m) => {
-    const mastery_score = Number(m.mastery_score) || 0;
-    const band = bandFromScore(mastery_score);
-    return {
-      subject: m.subject,
-      chapter: m.chapter ?? null,
-      concept: m.concept,
-      mastery_score,
-      band,
-      mistake_count: m.mistake_count ?? 0,
-    };
-  });
+  const concepts = input.mastery.map(conceptOf);
 
   const by_band: Record<MasteryBand, number> = {
     critical: 0,
     weak: 0,
     developing: 0,
-    strong: 0,
-    mastered: 0,
+    high: 0,
+    very_high: 0,
   };
   for (const c of concepts) by_band[c.band] += 1;
 
   const weak_concepts = concepts
     .filter((c) => c.band === "critical" || c.band === "weak")
     .sort((a, b) => a.mastery_score - b.mastery_score)
-    .slice(0, 12);
-  const strong_concepts = concepts
-    .filter((c) => c.band === "strong" || c.band === "mastered")
-    .sort((a, b) => b.mastery_score - a.mastery_score)
     .slice(0, 12);
 
   const avg_mastery = concepts.length
@@ -191,7 +224,6 @@ export function buildEieProjection(input: {
     avg_mastery,
     total_tracked: concepts.length,
     weak_concepts,
-    strong_concepts,
     by_band,
     revision_priority,
     attendance_risk: computeAttendanceRisk(input.attendance_pct),

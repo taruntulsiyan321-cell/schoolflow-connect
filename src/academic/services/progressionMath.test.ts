@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   progressionXpForLevel,
   progressionLevelProgress,
-  progressionLeagueFromXp,
-  PROGRESSION_LEAGUES,
 } from "./progressionMath";
 
 describe("progressionMath SSOT mirrors", () => {
@@ -21,12 +19,4 @@ describe("progressionMath SSOT mirrors", () => {
     expect(p.levelSpan).toBe(200);
     expect(p.levelProgressPct).toBe(25);
   });
-
-  it("league thresholds", () => {
-    expect(progressionLeagueFromXp(0).code).toBe("bronze");
-    expect(progressionLeagueFromXp(300).code).toBe("silver");
-    expect(progressionLeagueFromXp(40000).code).toBe("nova");
-    expect(PROGRESSION_LEAGUES).toHaveLength(10);
-  });
-
 });

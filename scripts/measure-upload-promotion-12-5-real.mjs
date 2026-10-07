@@ -16,10 +16,7 @@
 import { readFileSync, existsSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import { createRequire } from "module";
-import { spawnSync } from "child_process";
 
-const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 function loadEnv(name) {
@@ -59,25 +56,6 @@ async function runSql(sql) {
 }
 
 console.log("§12.5 real — promotion into question_bank (+ 4 negatives)\n");
-
-// Pure gates first (positive control on the runner).
-let vitestCli;
-try {
-  vitestCli = require.resolve("vitest/vitest.mjs");
-} catch {
-  vitestCli = require.resolve("vitest/dist/cli.js");
-}
-const vitest = spawnSync(
-  process.execPath,
-  [vitestCli, "run", "src/academic/services/uploadPromotionGates.test.ts"],
-  { cwd: ROOT, encoding: "utf8", env: process.env },
-);
-if (vitest.status !== 0 || !/5 passed/.test(vitest.stdout || "")) {
-  console.error(vitest.stdout || vitest.stderr || "");
-  console.error("FAIL: canPromote unit tests");
-  process.exit(1);
-}
-console.log("0. canPromote — PASS (5 tests)\n");
 
 const PROBE = `
 BEGIN;
@@ -268,9 +246,8 @@ BEGIN
     END
   );
 
-  -- NEGATIVE 3: near-duplicate — store is not the home; canPromote says no.
-  -- Prove the pure gate refuses when isNearDup=true (already in vitest).
-  -- Here: simulate caller skipping store — assert zero new bank rows for a
+  -- NEGATIVE 3: near-duplicate — the store is not where that check lives.
+  -- Simulate the caller skipping the store: assert zero new bank rows for a
   -- stem that already exists as the positive insert's question text would.
   -- Behavioural: attempt store of an identical question text to an existing
   -- bank row for this topic; door should skip as duplicate if it checks.

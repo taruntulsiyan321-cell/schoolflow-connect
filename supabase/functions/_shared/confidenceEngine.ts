@@ -1,5 +1,6 @@
 /**
- * Edge Confidence Engine — mirror of src/academic/ai/confidenceEngine.ts
+ * Confidence Engine v1 — score responses; low confidence → safer / facts-only.
+ * Does not rewrite AE/EIE facts.
  */
 
 import type { ValidationResult } from "./responseValidator.ts";

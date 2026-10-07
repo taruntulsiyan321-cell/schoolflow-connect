@@ -60,32 +60,6 @@ export function toPersonName(value: unknown, options: PersonNameOptions = {}): s
 }
 
 /**
- * Pick the first usable name from several candidates, then present it.
- * Use instead of `a ?? b ?? id.slice(0, 8)`.
- *
- * ```ts
- * toPersonNameFrom([profile.fullName, row.name], { kind: "student" })
- * ```
- */
-export function toPersonNameFrom(
-  candidates: readonly unknown[],
-  options: PersonNameOptions = {},
-): string {
-  for (const candidate of candidates) {
-    if (isIdentifierLike(candidate)) continue;
-    const presented = toDisplayText(candidate, {
-      kind: "name",
-      fallback: "",
-      allowEmpty: true,
-      maxLength: options.maxLength,
-    });
-    if (presented) return presented;
-  }
-  const { kind = "person" } = options;
-  return options.fallback ?? FALLBACK_BY_KIND[kind];
-}
-
-/**
  * Initials for avatars. Returns an empty string rather than initials derived
  * from an id, so callers can fall back to an icon.
  */

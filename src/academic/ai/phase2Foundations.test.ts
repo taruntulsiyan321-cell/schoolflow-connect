@@ -1,37 +1,51 @@
 /**
- * Phase 1 remainder + Phase 2 foundations unit tests.
+ * Phase 1 remainder + Phase 2 foundations unit tests — against the edge
+ * modules ai-gateway runs.
  */
 
 import { describe, expect, it } from "vitest";
 import {
   getBuiltinPrompt,
+  loadProductionPrompt,
   renderPromptTemplate,
-  resolveProductionPrompt,
-} from "./promptLibrary";
-import {
-  buildRecommendationPackage,
-  pickNextConcept,
-} from "./recommendationEngine";
-import {
-  createWorkflowRun,
-  getWorkflowDefinition,
-  listWorkflowDefinitions,
-} from "./workflowOrchestrator";
+} from "../../../supabase/functions/_shared/promptLibrary.ts";
+import { buildRecommendationPackage } from "../../../supabase/functions/_shared/recommendationEngine.ts";
 import {
   buildFeedbackRow,
   redactFeedbackComment,
 } from "./feedbackLoop";
-import { getCapability } from "./capabilityCatalog";
+import { getCapability } from "../../../supabase/functions/_shared/capabilityCatalog.ts";
 import { mapIntentToCapability } from "./intentMapper";
-import { computeAttendanceRisk, computeHomeworkConsistency } from "../eie/riskProducts";
-import { buildStudentEducationalIntelligence } from "../eie/studentIntelligence";
+import { computeAttendanceRisk, computeHomeworkConsistency } from "../../../supabase/functions/_shared/eieProjection.ts";
+
+/** The concept the package tells the student to practise first. */
+function nextConcept(pkg: ReturnType<typeof buildRecommendationPackage>): string | null {
+  return pkg.actions.find((a) => a.kind === "next_concept")?.concept_or_topic ?? null;
+}
 
 describe("Prompt Library v1", () => {
-  it("loads builtin production prompts for explain capabilities", () => {
+  it("loads builtin production prompts for explain capabilities", async () => {
     expect(getBuiltinPrompt("student.performance.explain")?.version).toBe("v1");
     expect(getBuiltinPrompt("student.concept.explain")?.status).toBe("production");
-    expect(resolveProductionPrompt("student.concept.explain")?.capability_id).toBe(
+    // With no prompt row in the database, the builtin is what runs.
+    const offline = { rpc: async () => ({ data: null, error: { message: "no such function" } }) };
+    expect((await loadProductionPrompt(offline, "student.concept.explain"))?.capability_id).toBe(
       "student.concept.explain",
+    );
+  });
+
+  it("prefers a production row from the database, and only a production one", async () => {
+    const row = (status: string) => ({
+      rpc: async () => ({
+        data: { ...getBuiltinPrompt("student.concept.explain"), version: "v9-db", status },
+        error: null,
+      }),
+    });
+    expect((await loadProductionPrompt(row("production"), "student.concept.explain"))?.version).toBe(
+      "v9-db",
+    );
+    expect((await loadProductionPrompt(row("shadow"), "student.concept.explain"))?.version).toBe(
+      getBuiltinPrompt("student.concept.explain")?.version,
     );
   });
 
@@ -60,7 +74,7 @@ describe("Recommendation Engine v1", () => {
       homework_completion_pct: 60,
     });
     expect(pkg.actions.length).toBeGreaterThan(0);
-    expect(pickNextConcept(pkg)?.concept_or_topic).toBe("Fractions");
+    expect(nextConcept(pkg)).toBe("Fractions");
     expect(pkg.actions.some((a) => a.kind === "attendance_checkin")).toBe(true);
     expect(pkg.actions.some((a) => a.kind === "homework_catchup")).toBe(true);
   });
@@ -80,7 +94,7 @@ describe("Recommendation Engine v1", () => {
       attendance_pct: null,
       homework_completion_pct: null,
     });
-    expect(pickNextConcept(pkg)?.concept_or_topic).toBe("Fractions");
+    expect(nextConcept(pkg)).toBe("Fractions");
     expect(pkg.actions.some((a) => a.kind === "revision_priority")).toBe(true);
     expect(pkg.actions.some((a) => a.kind === "attendance_checkin")).toBe(false);
     expect(pkg.actions.some((a) => a.kind === "homework_catchup")).toBe(false);
@@ -114,7 +128,7 @@ describe("Recommendation Engine v1", () => {
       revision_priority: [],
     });
     expect(pkg.actions).toEqual([]);
-    expect(pickNextConcept(pkg)).toBeNull();
+    expect(nextConcept(pkg)).toBeNull();
   });
 
   it("skips Subject/Topic/Daily/General placeholder seeds", () => {
@@ -133,7 +147,7 @@ describe("Recommendation Engine v1", () => {
         { subject: "Mathematics", topic: "Derivatives", priority: 8 },
       ],
     });
-    expect(pickNextConcept(pkg)?.concept_or_topic).toBe("Limits");
+    expect(nextConcept(pkg)).toBe("Limits");
     const rev = pkg.actions.find((a) => a.kind === "revision_priority");
     expect(rev?.concept_or_topic).toBe("Derivatives");
     expect(
@@ -141,24 +155,6 @@ describe("Recommendation Engine v1", () => {
         ["Daily", "General", "Subject", "Topic"].includes(String(a.concept_or_topic)),
       ),
     ).toBe(false);
-  });
-});
-
-describe("Workflow Orchestrator skeleton", () => {
-  it("registers teacher question paper workflow disabled", () => {
-    const def = getWorkflowDefinition("teacher.question_paper.v1");
-    expect(def?.enabled).toBe(false);
-    expect(def?.steps.length).toBeGreaterThan(3);
-    expect(listWorkflowDefinitions().length).toBeGreaterThanOrEqual(1);
-  });
-
-  it("createWorkflowRun stays registered when disabled", () => {
-    const run = createWorkflowRun({
-      workflow_id: "teacher.question_paper.v1",
-      run_id: "run-1",
-    });
-    expect(run.status).toBe("registered");
-    expect(run.error_code).toBe("workflow_disabled");
   });
 });
 
@@ -193,19 +189,6 @@ describe("EIE risk products", () => {
     const hw = computeHomeworkConsistency(40);
     expect(hw.consistency_score).toBe(40);
     expect(hw.band).toBe("high");
-  });
-
-  it("attaches risk products on student intelligence projection", () => {
-    const intel = buildStudentEducationalIntelligence({
-      studentId: "s1",
-      schoolId: "sch1",
-      mastery: [{ subject: "Math", concept: "Algebra", mastery_score: 50 }],
-      revisionQueue: [],
-      attendance_pct: 88,
-      homework_completion_pct: 92,
-    });
-    expect(intel.attendance_risk.attendance_pct).toBe(88);
-    expect(intel.homework_consistency.homework_completion_pct).toBe(92);
   });
 });
 

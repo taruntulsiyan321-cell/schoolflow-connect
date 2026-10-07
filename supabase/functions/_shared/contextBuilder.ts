@@ -1,5 +1,6 @@
 /**
- * Edge Context Builder — mirror of src/academic/ai/contextBuilder.ts
+ * Context Builder v1 — assemble AE + EIE packs with redaction, token budget and
+ * provenance. The last data-minimisation boundary before a model sees a request.
  */
 
 import {
@@ -85,7 +86,8 @@ function redactProjection(
   for (const [k, v] of Object.entries(input)) {
     const key = k.toLowerCase();
     if (FORBIDDEN_KEYS.has(key)) continue;
-    if (dropIds && (key === "id" || key.endsWith("_id") || key === "userid" || key === "user_id")) {
+    // An identifier in any spelling: id, student_id, studentId, userid.
+    if (dropIds && (key === "id" || key.endsWith("_id") || key === "userid" || /[a-z0-9]Id$/.test(k))) {
       continue;
     }
     if (key === "attempts" || key === "raw_attempts" || key === "attempt_history") continue;

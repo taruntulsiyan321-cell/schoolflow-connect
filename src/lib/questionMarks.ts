@@ -223,11 +223,6 @@ export function loadMarkTags(): Promise<MarkTag[]> {
   return tagsPromise;
 }
 
-/** Test seam: forget the cached catalogue. */
-export function resetMarkTagsCache(): void {
-  tagsPromise = null;
-}
-
 /**
  * The tags to offer, in their groups; a group appears where its first tag
  * does. A retired tag is offered only to a mark that already carries it, so

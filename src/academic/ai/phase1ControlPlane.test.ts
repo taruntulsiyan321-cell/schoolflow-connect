@@ -1,32 +1,30 @@
 /**
  * Phase 1 unit tests — Context Builder, Validator, Confidence, Budget, Analytics, Narrative.
+ *
+ * Every import is the edge module ai-gateway runs. Budget ENFORCEMENT is the
+ * SQL function `ai_budget_check_and_reserve`, not code here, so only the
+ * per-tier cost units are tested below.
  */
 
 import { describe, expect, it } from "vitest";
 import {
   buildContextPack,
-  packContainsForbidden,
   packForModel,
-  redactProjection,
-} from "./contextBuilder";
+} from "../../../supabase/functions/_shared/contextBuilder.ts";
 import {
   evidenceFromExplainFacts,
   validateModelResponse,
-} from "./responseValidator";
+} from "../../../supabase/functions/_shared/responseValidator.ts";
 import {
   applyConfidencePolicy,
   scoreConfidence,
-} from "./confidenceEngine";
+} from "../../../supabase/functions/_shared/confidenceEngine.ts";
 import {
   assignReasoningTier,
   getTierLimits,
   modelCallOptionsForTier,
-} from "./reasoningBudget";
-import {
-  checkBudgetReservation,
-  estimateUnitsForTier,
-  periodKey,
-} from "./budgetQuotas";
+} from "../../../supabase/functions/_shared/reasoningBudget.ts";
+import { estimateUnitsForTier } from "../../../supabase/functions/_shared/budgetQuotas.ts";
 
 const AE = {
   attendance: {
@@ -38,6 +36,7 @@ const AE = {
     source_as_of: "2026-08-01",
     completeness: 1,
     internal_notes: "SECRET",
+    password: "hunter2",
     studentId: "stu-uuid-should-drop",
   },
   homework: {
@@ -105,19 +104,14 @@ describe("Context Builder v1", () => {
     expect(pack.provenance.algorithm_ids).toContain("eie.mastery.v1");
     expect(pack.provenance.data_versions.length).toBeGreaterThan(0);
     expect(pack.provenance.source_as_of).toBe("2026-08-01");
-    expect(packContainsForbidden(pack)).toBe(false);
-    expect(JSON.stringify(pack.ae_facts)).not.toMatch(/internal_notes|SECRET/i);
+    // The fixture carries a password, a staff note and a student id; none may
+    // reach the pack, and the figure beside them must.
+    const whole = JSON.stringify(pack);
+    expect(whole).not.toMatch(/hunter2|"password"/);
+    expect(whole).not.toMatch(/internal_notes|SECRET/i);
+    expect(whole).not.toContain("stu-uuid-should-drop");
     expect(JSON.stringify(pack.eie_facts)).not.toMatch(/attempt_history/);
     expect(packForModel(pack)).toContain("92.5");
-  });
-
-  it("redactProjection drops forbidden keys", () => {
-    const r = redactProjection({ password: "x", attendance_pct: 80 }) as Record<
-      string,
-      unknown
-    >;
-    expect(r.password).toBeUndefined();
-    expect(r.attendance_pct).toBe(80);
   });
 });
 
@@ -217,47 +211,6 @@ describe("Confidence Engine v1", () => {
 });
 
 describe("Budget quotas", () => {
-  it("allows under soft limit", () => {
-    const r = checkBudgetReservation({
-      quotas: [],
-      usage: [],
-      school_id: "sch-1",
-      feature_id: "student.performance.explain",
-    });
-    expect(r.ok).toBe(true);
-    if (r.ok) expect(r.soft_breach).toBe(false);
-  });
-
-  it("hard-blocks when exhausted", () => {
-    const day = periodKey("daily");
-    const r = checkBudgetReservation({
-      quotas: [
-        {
-          school_id: "sch-1",
-          scope: "school",
-          feature_id: null,
-          period: "daily",
-          soft_limit_units: 10,
-          hard_limit_units: 12,
-        },
-      ],
-      usage: [
-        {
-          school_id: "sch-1",
-          feature_id: null,
-          period: "daily",
-          period_key: day,
-          units_used: 12,
-        },
-      ],
-      school_id: "sch-1",
-      feature_id: "student.performance.explain",
-      units: 1,
-    });
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect((r as Extract<typeof r, { ok: false }>).error_code).toBe("budget_exhausted");
-  });
-
   it("estimates tier units", () => {
     expect(estimateUnitsForTier("simple")).toBe(1);
     expect(estimateUnitsForTier("complex")).toBeGreaterThan(estimateUnitsForTier("medium"));

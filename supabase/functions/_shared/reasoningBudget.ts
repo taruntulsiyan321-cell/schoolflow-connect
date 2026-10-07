@@ -104,7 +104,8 @@ export function assignReasoningTier(signals: TierSignals): ReasoningTier {
   if (len > 2000 && (tier === "simple" || tier === "medium")) tier = "complex";
 
   if (signals.budget_pressure) {
-    if (tier === "complex" || tier === "enterprise") tier = "medium";
+    // "enterprise" cannot reach here: it became "complex" at the top.
+    if (tier === "complex") tier = "medium";
     else if (tier === "medium") tier = "simple";
   }
 

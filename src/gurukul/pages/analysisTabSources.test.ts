@@ -354,7 +354,9 @@ describe("G5 — accuracy has one source", () => {
   });
 
   it("does not blend test marks into the Analysis accuracy", () => {
-    expect(HOOK).not.toContain("overallAccuracyFromSnapshot");
+    // The blend is exam_readiness.accuracy_pct, and nothing reads it for a
+    // screen any more; reading exam_readiness at all is how it would come back.
+    expect(HOOK).not.toContain("exam_readiness");
   });
 
   it("derives it from correct and the attempt total instead", () => {

@@ -46,13 +46,9 @@ const ALLOWLIST = {
   "src/lib/presentation/enums.ts::ad-hoc-humanize":
     "This module IS the enum registry; humanizeEnumValue is the canonical implementation.",
 
-  // Telemetry, not UI. These strings are machine codes consumed by benchmark
-  // and embedding-job records; routing them through toErrorMessage would
-  // replace real diagnostics with a generic sentence nobody can debug from.
-  "src/academic/ai/benchmarkSuite.ts::raw-error-message":
-    "Benchmark/gate telemetry payload, never rendered; the raw message is the diagnostic value.",
-  "src/academic/ai/embeddingProvider.ts::raw-error-message":
-    "Embedding-job failure record persisted for operators, never rendered to a user.",
+  // Telemetry, not UI. This string is a machine code returned for logging;
+  // routing it through toErrorMessage would replace a real diagnostic with a
+  // generic sentence nobody can debug from.
   "src/academic/ai/feedbackLoop.ts::raw-error-message":
     "Feedback-insert failure record returned to callers for logging, never rendered.",
 

@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveCoachCapability, NOVA_BLOCKED_SCHOOL_RECORD_FEATURES } from "./gatewayClient";
 import { mapIntentToCapability } from "./intentMapper";
-import { getBuiltinPrompt } from "./promptLibrary";
+import { getBuiltinPrompt } from "../../../supabase/functions/_shared/promptLibrary.ts";
 import { novaConversationsKey } from "@/lib/clientStorage";
 
 const OFFICE = [

@@ -7,7 +7,7 @@
  * so e.g. "explain … concept" is not swallowed by /\bmarks?\b/.
  */
 
-import { getCapability } from "./capabilityCatalog";
+import { getCapability } from "../../../supabase/functions/_shared/capabilityCatalog.ts";
 import type { AiActorRole } from "./envelope";
 
 type MappedIntent = {

@@ -285,15 +285,6 @@ export function usesLeftFromDecision(
   return { left: d.remaining, note: `${d.remaining} ${d.remaining === 1 ? one : many} left${LEFT_WHEN[d.period ?? ""] ?? ""} on your plan.` };
 }
 
-/**
- * True when the feature would be refused now. While enforcement is off
- * nothing is refused, whatever the plan.
- */
-export function isRefused(status: PremiumStatus | null, feature: PremiumFeature): boolean {
-  const d = featureDecision(status, feature);
-  return !!d && d.ok === false;
-}
-
 /** Buying happens on the web only (see the header). */
 export function canBuyInThisApp(): boolean {
   return !Capacitor.isNativePlatform();

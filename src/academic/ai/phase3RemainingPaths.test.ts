@@ -1,64 +1,39 @@
 /**
  * Phase 3 remaining production paths — image solve, marking scheme,
- * EIE school rollups, prompt shadow traffic, voice STT stub.
+ * EIE school rollups, prompt shadow traffic, voice STT stub. Against the edge
+ * modules ai-gateway runs; private gates are reached through their callers.
  */
 
 import { describe, expect, it } from "vitest";
 import {
   runImageDoubtSolve,
-  gateImageDoubtSolveConfidence,
-  IMAGE_DOUBT_CONFIDENCE_THRESHOLD,
   renderImageDoubtSolvePrompt,
-} from "./imageDoubtSolve";
+} from "../../../supabase/functions/_shared/imageDoubtSolve.ts";
 import {
   buildQuestionPaperMarkingScheme,
   renderMarkingSchemePrompt,
-} from "./questionPaperMarkingScheme";
-import { runVoiceDoubtSubmit, validateVoiceMetadata } from "./voiceDoubtSubmit";
-import { buildSchoolHealthBrief } from "./schoolHealthBrief";
+} from "../../../supabase/functions/_shared/questionPaperMarkingScheme.ts";
+import { runVoiceDoubtSubmit } from "../../../supabase/functions/_shared/voiceDoubtSubmit.ts";
+import { buildSchoolHealthBrief } from "../../../supabase/functions/_shared/schoolHealthBrief.ts";
 import {
-  shouldUseShadowPrompt,
   parseShadowPromptFlag,
   selectPromptWithShadow,
-} from "./promptEvaluation";
-import { getBuiltinPrompt, resolveShadowPrompt } from "./promptLibrary";
-import { getCapability } from "./capabilityCatalog";
-import { planRoute } from "./routerPolicy";
+} from "../../../supabase/functions/_shared/promptEvaluation.ts";
+import { getBuiltinPrompt, loadShadowPrompt } from "../../../supabase/functions/_shared/promptLibrary.ts";
+import { getCapability } from "../../../supabase/functions/_shared/capabilityCatalog.ts";
 import { mapIntentToCapability } from "./intentMapper";
-import {
-  createWorkflowRun,
-  getWorkflowDefinition,
-  listWorkflowDefinitions,
-} from "./workflowOrchestrator";
-import { SESSION_MEMORY_CAPABILITIES } from "./sessionMemory";
-import { buildSchoolRiskRollups } from "../eie/schoolRollups";
-
-const FLAGS_ON = {
-  gatewayEnabled: true,
-  deterministicEnabled: true,
-  generativeEnabled: true,
-};
-const FLAGS_GEN_OFF = {
-  gatewayEnabled: true,
-  deterministicEnabled: true,
-  generativeEnabled: false,
-};
+import { sessionScopeForCapability } from "../../../supabase/functions/_shared/sessionMemory.ts";
+import { buildSchoolRiskRollups } from "../../../supabase/functions/_shared/schoolRollups.ts";
 
 describe("student.image_doubt.solve gated tutoring", () => {
   it("refuses missing reconstructed question / low confidence", () => {
-    expect(
-      gateImageDoubtSolveConfidence({
-        reconstructed_question: "",
-        extraction_confidence: 0.9,
-      }).ok,
-    ).toBe(false);
-    expect(
-      gateImageDoubtSolveConfidence({
-        reconstructed_question: "Solve 2x+3=7",
-        extraction_confidence: 0.2,
-      }).ok,
-    ).toBe(false);
-    expect(IMAGE_DOUBT_CONFIDENCE_THRESHOLD).toBe(0.55);
+    const solve = (reconstructed_question: string, extraction_confidence: number) =>
+      runImageDoubtSolve({ reconstructed_question, extraction_confidence });
+    expect(solve("", 0.9).stop_reason).toBe("reconstructed_question_required");
+    expect(solve("Solve 2x+3=7", 0.2).stop_reason).toBe("low_extraction_confidence");
+    // The bar is 0.55: just under it clarifies, just over it does not.
+    expect(solve("Solve 2x+3=7", 0.54).status).toBe("clarify");
+    expect(solve("Solve 2x+3=7", 0.56).status).not.toBe("clarify");
 
     const clarify = runImageDoubtSolve({
       reconstructed_question: "Solve 2x+3=7",
@@ -103,26 +78,14 @@ describe("student.image_doubt.solve gated tutoring", () => {
     expect(good.validation_ok).toBe(true);
   });
 
-  it("registers capability + enabled workflow; full image_doubt.v1 stays disabled", () => {
+  it("registers capability, prompt and session scope", () => {
     const cap = getCapability("student.image_doubt.solve");
     expect(cap?.model_policy).toBe("optional_explain");
     expect(cap?.allowed_roles).toEqual(["student", "teacher", "admin"]);
     expect(cap?.allowed_roles.includes("super_admin" as never)).toBe(false);
     expect(getBuiltinPrompt("student.image_doubt.solve")?.status).toBe("production");
     expect(renderImageDoubtSolvePrompt({ question: "x+1=2" }).system.length).toBeGreaterThan(20);
-
-    const def = getWorkflowDefinition("student.image_doubt.solve.v1");
-    expect(def?.enabled).toBe(true);
-    expect(def?.steps.map((s) => s.step_id)).toContain("cache_lookup");
-    expect(createWorkflowRun({ workflow_id: "student.image_doubt.solve.v1", run_id: "s1" }).status)
-      .toBe("pending");
-    expect(getWorkflowDefinition("student.image_doubt.v1")?.enabled).toBe(false);
-    expect(SESSION_MEMORY_CAPABILITIES["student.image_doubt.solve"]).toBe("tutoring");
-
-    const on = planRoute("student.image_doubt.solve", FLAGS_ON);
-    if (!("rejected" in on)) expect(on.may_call_model).toBe(true);
-    const off = planRoute("student.image_doubt.solve", FLAGS_GEN_OFF);
-    if (!("rejected" in off)) expect(off.may_call_model).toBe(false);
+    expect(sessionScopeForCapability("student.image_doubt.solve")).toBe("tutoring");
   });
 });
 
@@ -161,7 +124,6 @@ describe("teacher.question_paper.marking_scheme", () => {
     expect(ok.marking_scheme_text).toMatch(/40/);
     expect(getBuiltinPrompt("teacher.question_paper.marking_scheme")?.status).toBe("production");
     expect(renderMarkingSchemePrompt({ outline_text: "Outline" }).user.length).toBeGreaterThan(10);
-    expect(getWorkflowDefinition("teacher.question_paper.marking_scheme.v1")?.enabled).toBe(true);
     expect(mapIntentToCapability("Generate a marking scheme")?.feature_id).toBe(
       "teacher.question_paper.marking_scheme",
     );
@@ -208,22 +170,22 @@ describe("EIE school rollups + health brief enrichment", () => {
 });
 
 describe("Prompt Evaluation shadow traffic flag", () => {
-  it("samples stably by request id and never auto-promotes", () => {
-    expect(shouldUseShadowPrompt("req-stable-1", 0)).toBe(false);
-    expect(shouldUseShadowPrompt("req-stable-1", 100)).toBe(true);
-    const a = shouldUseShadowPrompt("abc-123", 50);
-    const b = shouldUseShadowPrompt("abc-123", 50);
-    expect(a).toBe(b);
+  it("samples stably by request id and never auto-promotes", async () => {
+    const production = getBuiltinPrompt("student.concept.explain");
+    const shadow = production
+      ? { ...production, version: "v2-shadow", status: "shadow" as const }
+      : null;
+    const pick = (request_id: string, shadow_percent: number) =>
+      selectPromptWithShadow({ production, shadow, request_id, shadow_percent }).shadow_sampled;
+    expect(pick("req-stable-1", 0)).toBe(false);
+    expect(pick("req-stable-1", 100)).toBe(true);
+    expect(pick("abc-123", 50)).toBe(pick("abc-123", 50));
 
     const flag = parseShadowPromptFlag(true, { percent: 15 });
     expect(flag.enabled).toBe(true);
     expect(flag.percent).toBe(15);
     expect(parseShadowPromptFlag(false, { percent: 90 }).percent).toBe(0);
 
-    const production = getBuiltinPrompt("student.concept.explain");
-    const shadow = production
-      ? { ...production, version: "v2-shadow", status: "shadow" as const }
-      : null;
     const selected = selectPromptWithShadow({
       production,
       shadow,
@@ -232,18 +194,21 @@ describe("Prompt Evaluation shadow traffic flag", () => {
     });
     expect(selected.selected_status).toBe("shadow");
     expect(selected.shadow_sampled).toBe(true);
-    expect(resolveShadowPrompt("student.concept.explain", shadow)?.status).toBe("shadow");
+    // Only a row whose status IS shadow loads as the shadow prompt.
+    const answering = (row: unknown) => ({ rpc: async () => ({ data: row, error: null }) });
+    expect((await loadShadowPrompt(answering(shadow), "student.concept.explain"))?.status).toBe(
+      "shadow",
+    );
+    expect(await loadShadowPrompt(answering(production), "student.concept.explain")).toBeNull();
   });
 });
 
 describe("student.voice_doubt.submit STT stub", () => {
   it("clarifies when STT unset and never invents transcript", () => {
     expect(
-      validateVoiceMetadata({ mime: "audio/wav", bytes: 2000, duration_ms: 1500 }).ok,
-    ).toBe(true);
-    expect(
-      validateVoiceMetadata({ mime: "image/jpeg", bytes: 2000 }).ok,
-    ).toBe(false);
+      runVoiceDoubtSubmit({ mime: "audio/wav", bytes: 2000, duration_ms: 1500 }).checkpoints[0],
+    ).toMatchObject({ step_id: "validate_media", ok: true });
+    expect(runVoiceDoubtSubmit({ mime: "image/jpeg", bytes: 2000 }).status).toBe("rejected");
 
     const r = runVoiceDoubtSubmit(
       { mime: "audio/webm", bytes: 4000, duration_ms: 2000 },
@@ -269,21 +234,18 @@ describe("student.voice_doubt.submit STT stub", () => {
     expect(deferred.transcript_text).toBeNull();
   });
 
-  it("registers capability + workflow without super_admin", () => {
+  it("registers capability without super_admin", () => {
     const cap = getCapability("student.voice_doubt.submit");
     expect(cap?.model_policy).toBe("never");
     expect(cap?.allowed_roles.includes("super_admin" as never)).toBe(false);
-    expect(getWorkflowDefinition("student.voice_doubt.submit.v1")?.enabled).toBe(true);
     expect(mapIntentToCapability("Record a voice doubt")?.feature_id).toBe(
       "student.voice_doubt.submit",
     );
-    const plan = planRoute("student.voice_doubt.submit", FLAGS_ON);
-    if (!("rejected" in plan)) expect(plan.may_call_model).toBe(false);
   });
 });
 
-describe("No super_admin + multi-agent still reserved", () => {
-  it("new capabilities exclude super_admin; full paper/image tutoring stay disabled", () => {
+describe("No super_admin", () => {
+  it("new capabilities exclude super_admin", () => {
     for (const id of [
       "student.image_doubt.solve",
       "student.voice_doubt.submit",
@@ -291,8 +253,5 @@ describe("No super_admin + multi-agent still reserved", () => {
     ]) {
       expect(getCapability(id)?.allowed_roles.includes("super_admin" as never)).toBe(false);
     }
-    expect(getWorkflowDefinition("student.image_doubt.v1")?.enabled).toBe(false);
-    expect(getWorkflowDefinition("teacher.question_paper.v1")?.enabled).toBe(false);
-    expect(listWorkflowDefinitions().length).toBeGreaterThanOrEqual(9);
   });
 });

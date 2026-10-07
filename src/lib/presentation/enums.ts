@@ -361,11 +361,3 @@ export function toEnumLabel(
 export function enumOptions(domain: EnumDomain): Array<{ value: string; label: string }> {
   return Object.entries(LABELS[domain] ?? {}).map(([value, label]) => ({ value, label }));
 }
-
-/** True when the value is a known member of the domain. */
-export function isKnownEnumValue(value: unknown, domain: EnumDomain): boolean {
-  if (typeof value !== "string") return false;
-  const map = LABELS[domain];
-  if (!map) return false;
-  return Object.prototype.hasOwnProperty.call(map, value.trim().toLowerCase());
-}

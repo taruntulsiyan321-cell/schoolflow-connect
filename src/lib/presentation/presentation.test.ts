@@ -5,8 +5,8 @@ import {
   toDisplayText,
   NOT_AVAILABLE,
 } from "./safeText";
-import { toEnumLabel, humanizeEnumValue, isKnownEnumValue, enumOptions } from "./enums";
-import { toPersonName, toPersonNameFrom, toInitials, toClassLabel } from "./people";
+import { toEnumLabel, humanizeEnumValue, enumOptions } from "./enums";
+import { toPersonName, toInitials, toClassLabel } from "./people";
 import { toUserMessage, toErrorMessage, looksLikeDatabaseNoise } from "./errors";
 
 const UUID = "3f2a9c11-4b8e-4c1a-9f0d-2b7e5a1c8d33";
@@ -144,11 +144,6 @@ describe("toEnumLabel — internal tokens never reach the user", () => {
     expect(toEnumLabel({}, "attendance_status")).toBe("—");
     expect(toEnumLabel("", "attendance_status")).toBe("—");
   });
-
-  it("reports membership accurately", () => {
-    expect(isKnownEnumValue("half_day", "attendance_status")).toBe(true);
-    expect(isKnownEnumValue("nope", "attendance_status")).toBe(false);
-  });
 });
 
 describe("toPersonName — a missing name is never an id", () => {
@@ -166,13 +161,6 @@ describe("toPersonName — a missing name is never an id", () => {
     expect(toPersonName(null, { kind: "parent" })).toBe("Unnamed parent");
     expect(toPersonName(null)).toBe("Unnamed");
     expect(toPersonName(null, { fallback: "Removed" })).toBe("Removed");
-  });
-
-  it("picks the first usable candidate and skips ids", () => {
-    expect(toPersonNameFrom([null, UUID, "Arjun Mehta"], { kind: "student" })).toBe(
-      "Arjun Mehta",
-    );
-    expect(toPersonNameFrom([undefined, ""], { kind: "student" })).toBe("Unnamed student");
   });
 
   it("derives initials only from real names", () => {

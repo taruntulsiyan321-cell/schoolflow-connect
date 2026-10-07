@@ -35,7 +35,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLatestEffect } from "@/hooks/useLatestEffect";
 import { useAcademicContext, useAcademicLive } from "@/academic";
 import { studentShellReady } from "@/academic/services/assertStudentContext";
-import { hasPracticeAccuracy, practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
+import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
+import { toInitials, toPersonName } from "@/lib/presentation/people";
 import { readStudentAcademicSnapshot, type AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 
 export default function StudentDashboard() {
@@ -153,16 +154,16 @@ export default function StudentDashboard() {
     const snapshot = snapRead.data;
 
     // PRACTICE accuracy, and null rather than 0 when there is nothing to
-    // compute it from — ruling 8. `hasPracticeAccuracy` is what separates "no
-    // attempts" from "attempted and got none right", which both used to arrive
-    // at every screen as a bare 0.
-    const practiceAccuracy = hasPracticeAccuracy(snapshot)
-      ? practiceAccuracyFromSnapshot(snapshot)
-      : null;
+    // compute it from — ruling 8. "No attempts" and "attempted and got none
+    // right" both used to arrive at every screen as a bare 0.
+    const practiceAccuracy = practiceAccuracyFromSnapshot(snapshot);
 
-    const fullName = s?.full_name?.trim() || user.email?.split("@")[0] || "Student";
+    // A missing name is "Student", never the email's local part — for an exam
+    // account that is the phone number — and the initials are the name's or
+    // none at all (the top bar then shows a figure), never an invented "ST".
+    const fullName = toPersonName(s?.full_name, { kind: "student", fallback: "Student" });
     const parts = fullName.split(/\s+/);
-    const initials = (parts[0]?.[0] || "S") + (parts[1]?.[0] || parts[0]?.[1] || "");
+    const initials = toInitials(s?.full_name);
 
     const xp = prog?.xp ?? 0;
     const level = prog?.level ?? 1;
@@ -183,7 +184,7 @@ export default function StudentDashboard() {
       name: fullName,
       firstName: parts[0] || fullName,
       // Class label comes from AcademicContext identity (shared with Practice).
-      avatar: initials.toUpperCase(),
+      avatar: initials,
       xp,
       level,
       xpToNext,
@@ -277,7 +278,7 @@ export default function StudentDashboard() {
           {/* Design student panel */}
           <Route index element={<Dashboard setPage={setPage} />} />
           <Route path="practice" element={<Practice setPage={setPage} />} />
-          <Route path="aicoach" element={<AICoach setPage={setPage} />} />
+          <Route path="aicoach" element={<AICoach />} />
           <Route path="analysis" element={<Analysis />} />
           <Route path="analytics" element={<Navigate to="/student/analysis" replace />} />
           <Route path="report" element={<Navigate to="/student/analysis" replace />} />

@@ -1,6 +1,6 @@
 /**
- * Edge Nova Context Builder — mirror of src/academic/ai/novaContextBuilder.ts
- * Deduplicate subjects/labels; never emit placeholder chips in packs.
+ * Nova Context Builder — subject dedupe and placeholder hygiene. The one copy:
+ * ai-gateway and the app (Nova, revision mode) both import it.
  */
 
 const PLACEHOLDER_LABELS = new Set(

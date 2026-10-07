@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false } }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
 
-const { describeAllowance, formatRupees, planLimitFrom, isRefused } = await import("./premium");
+const { describeAllowance, formatRupees, planLimitFrom } = await import("./premium");
 
 const decision = {
   ok: false,
@@ -61,33 +61,6 @@ describe("planLimitFrom", () => {
     expect(planLimitFrom({ decision: "degraded", message: "402 credits" })).toBeNull();
     expect(planLimitFrom({ message: "permission denied for function rpc_x", code: "42501" })).toBeNull();
     expect(planLimitFrom({ error_code: "plan_limit", premium: { ...decision, ok: true } })).toBeNull();
-  });
-});
-
-describe("isRefused", () => {
-  const status = {
-    individual: true as const,
-    enforced: true,
-    sales_enabled: false,
-    terms_version: "",
-    tier: "free",
-    tier_rank: 0,
-    tier_until: null,
-    entitlements: [],
-    tiers: [],
-    products: [],
-    features: [
-      { ok: false, feature: "analysis.topic", reason: "not_in_plan" as const },
-      { ok: true, feature: "practice.question", period: "day" as const, limit: 20, used: 3, remaining: 17 },
-    ],
-  };
-  it("follows the server's decision per feature", () => {
-    expect(isRefused(status, "analysis.topic")).toBe(true);
-    expect(isRefused(status, "practice.question")).toBe(false);
-  });
-  it("never refuses a school student or an unread status", () => {
-    expect(isRefused({ individual: false }, "analysis.topic")).toBe(false);
-    expect(isRefused(null, "analysis.topic")).toBe(false);
   });
 });
 

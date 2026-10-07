@@ -1,6 +1,6 @@
 /**
  * quality:student-context — static E2E journey wiring checks.
- * Detects missing student context gates, PRESENTATION_MODE, and shell readiness.
+ * Detects missing student context gates and shell readiness.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -17,14 +17,6 @@ function mustInclude(rel, patterns, label) {
   const text = read(rel);
   for (const re of patterns) {
     if (!re.test(text)) failures.push(`${rel}: missing ${label} (${re})`);
-  }
-}
-
-// PRESENTATION_MODE must stay off
-{
-  const text = read("src/lib/presentationMode.ts");
-  if (!/export\s+const\s+PRESENTATION_MODE\s*=\s*false\s*;/.test(text)) {
-    failures.push("PRESENTATION_MODE must be false");
   }
 }
 

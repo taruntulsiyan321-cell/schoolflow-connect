@@ -188,7 +188,7 @@ export function FeynmanTest({
             Finish
           </button>
         </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none" aria-label="Key ideas explained">
+        <div className="flex items-center gap-1.5 overflow-x-auto" aria-label="Key ideas explained">
           <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">
             {covered.length}/{gist.key_points.length} ideas
           </span>

@@ -22,8 +22,8 @@
  *    shell was ready and the BLEND while it was not, so one tile showed two
  *    different metrics depending on a loading flag.
  *
- *    The field is now `practiceAccuracy`. A screen that wants the blend must
- *    say `overallAccuracyFromSnapshot` and mean it.
+ *    The field is now `practiceAccuracy`. No screen shows the blend
+ *    (`exam_readiness.accuracy_pct`); nothing reads it for one.
  *
  * 2. ABSENCE IS `null`, NEVER `0`.
  *
@@ -60,7 +60,7 @@ export type GurukulStudentProfile = {
   /**
    * PRACTICE accuracy only — `exam_readiness.practice_accuracy_pct` via
    * `practiceAccuracyFromSnapshot`. NOT the test+practice blend; that is
-   * `overallAccuracyFromSnapshot`, and it does not live on this profile.
+   * `exam_readiness.accuracy_pct`, and it does not live on this profile.
    * null when the student has attempted nothing.
    */
   practiceAccuracy: number | null;

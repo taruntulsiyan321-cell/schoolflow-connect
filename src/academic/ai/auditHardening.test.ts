@@ -1,15 +1,18 @@
 /**
- * Audit regression coverage for Gurukul AI hardening.
+ * Audit regression coverage for Gurukul AI hardening — against the catalogue
+ * and session memory ai-gateway runs.
  */
 import { describe, expect, it } from "vitest";
-import { CAPABILITY_CATALOG, getCapability } from "./capabilityCatalog";
-import type { AiActorRole } from "./envelope";
-import { planRoute, wouldCallModel } from "./routerPolicy";
+import {
+  getCapability,
+  type AiActorRole,
+} from "../../../supabase/functions/_shared/capabilityCatalog.ts";
 import {
   redactSessionForContext,
-  SESSION_MEMORY_CAPABILITIES,
+  sessionScopeForCapability,
   buildSessionSummaryPatch,
-} from "./sessionMemory";
+} from "../../../supabase/functions/_shared/sessionMemory.ts";
+import { edgeCapabilityIds, edgeSessionMemoryIds } from "@/test/edgeRegistries";
 
 const VALID_ROLES: AiActorRole[] = [
   "student",
@@ -19,16 +22,20 @@ const VALID_ROLES: AiActorRole[] = [
   "admin",
 ];
 
-const FLAGS_ON = {
-  gatewayEnabled: true,
-  deterministicEnabled: true,
-  generativeEnabled: true,
-};
+/** Every catalogue entry, each proved against the module's own lookup. */
+function catalogue() {
+  return edgeCapabilityIds().map((id) => {
+    const cap = getCapability(id);
+    expect(cap, id).not.toBeNull();
+    expect(cap!.feature_id).toBe(id);
+    return cap!;
+  });
+}
 
 describe("AI audit hardening", () => {
   it("AiActorRole and capability roles never include super_admin", () => {
     expect(VALID_ROLES.includes("super_admin" as AiActorRole)).toBe(false);
-    for (const cap of Object.values(CAPABILITY_CATALOG)) {
+    for (const cap of catalogue()) {
       for (const role of cap.allowed_roles) {
         expect(VALID_ROLES).toContain(role);
         expect(role).not.toBe("super_admin");
@@ -37,35 +44,10 @@ describe("AI audit hardening", () => {
   });
 
   it("every catalog capability is either never-model or optional/budget", () => {
-    for (const cap of Object.values(CAPABILITY_CATALOG)) {
+    for (const cap of catalogue()) {
       expect(["never", "optional_explain", "required_when_budget"]).toContain(
         cap.model_policy,
       );
-    }
-  });
-
-  it("deterministic never-policy caps never plan a model call", () => {
-    for (const [id, cap] of Object.entries(CAPABILITY_CATALOG)) {
-      if (cap.model_policy !== "never") continue;
-      expect(wouldCallModel(id, FLAGS_ON)).toBe(false);
-      const plan = planRoute(id, FLAGS_ON);
-      if ("rejected" in plan) continue;
-      expect(plan.may_call_model).toBe(false);
-    }
-  });
-
-  it("recommendation + grounded_retrieval respect deterministic kill switch", () => {
-    const off = {
-      gatewayEnabled: true,
-      deterministicEnabled: false,
-      generativeEnabled: true,
-    };
-    for (const id of ["student.recommendation.next", "student.knowledge.retrieve"]) {
-      const plan = planRoute(id, off);
-      expect("rejected" in plan && plan.rejected).toBe(true);
-      if ("rejected" in plan) {
-        expect(plan.error_code).toBe("deterministic_disabled");
-      }
     }
   });
 
@@ -76,8 +58,9 @@ describe("AI audit hardening", () => {
   });
 
   it("session memory allowlist matches catalog only (no orphans)", () => {
-    for (const id of Object.keys(SESSION_MEMORY_CAPABILITIES)) {
-      expect(getCapability(id)).not.toBeNull();
+    for (const id of edgeSessionMemoryIds()) {
+      expect(sessionScopeForCapability(id), id).not.toBeNull();
+      expect(getCapability(id), id).not.toBeNull();
     }
   });
 
@@ -99,18 +82,6 @@ describe("AI audit hardening", () => {
     });
     expect(redacted?.flags).toEqual({ plan_hash: "abc", keep_me: true });
     expect(JSON.stringify(redacted)).not.toMatch(/HUGE OUTLINE|MARKING|PAPER/);
-  });
-
-  it("EIE data version counts open revision only", async () => {
-    const { computeDataVersion } = await import("../eie/studentIntelligence");
-    const v = computeDataVersion(
-      [{ subject: "Math", concept: "A", mastery_score: 50 }],
-      [
-        { subject: "Math", priority: 1, completed: true },
-        { subject: "Math", priority: 2, completed: false },
-      ],
-    );
-    expect(v.startsWith("eie:1:1:")).toBe(true);
   });
 
   it("redaction strips outline but raw summary retains it for marking scheme", () => {

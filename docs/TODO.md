@@ -182,3 +182,8 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
   same (KNOWN_ISSUES 115 item 1).
 - **E5. Question reports:** the disputed list has no owner screen, and
   reversing a wrong automatic key change is manual (KNOWN_ISSUES 113).
+- **E6. Type-check the edge functions.** No gate does; ai-gateway's graph has
+  59 errors that only the bundler's leniency lets run (KNOWN_ISSUES 117 item 3).
+- **E7. At the next deploy of each AI function:** it takes the
+  `reasoningBudget.ts` change and the corrected headers, and the drift baseline
+  is lowered (KNOWN_ISSUES 117 items 1–2).

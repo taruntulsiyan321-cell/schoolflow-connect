@@ -12,6 +12,7 @@ import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
 import { Link } from "react-router-dom";
 import { LEGAL_ENTITY } from "@/lib/legal";
+import { toPersonName } from "@/lib/presentation/people";
 
 /** One date format for this screen. */
 function formatDayMonthYear(iso: string) {
@@ -87,7 +88,7 @@ export default function Profile({
       ]);
       const sRes = settled[0].status === "fulfilled" ? settled[0].value : null;
       const prog = settled[1].status === "fulfilled" ? settled[1].value : null;
-      setName(sRes?.data?.full_name ?? "Student");
+      setName(toPersonName(sRes?.data?.full_name, { kind: "student", fallback: "Student" }));
       if (prog) {
         const derived = progressionLevelProgress(prog.xp, prog.level);
         setLevel(prog.level);

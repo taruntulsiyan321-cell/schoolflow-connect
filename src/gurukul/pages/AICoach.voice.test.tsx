@@ -56,7 +56,7 @@ const w = window as unknown as { webkitSpeechRecognition?: unknown };
 const { default: AICoach } = await import("./AICoach");
 const { CAPTURE_MESSAGES } = await import("@/gurukul/nova/useSpeechCapture");
 
-const show = () => render(<MemoryRouter><AICoach setPage={() => {}} /></MemoryRouter>);
+const show = () => render(<MemoryRouter><AICoach /></MemoryRouter>);
 const box = () => screen.getByPlaceholderText(/Ask about a concept/) as HTMLTextAreaElement;
 
 beforeEach(() => {

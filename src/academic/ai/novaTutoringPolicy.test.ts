@@ -4,9 +4,8 @@ import {
   pickExactSemanticMatch,
   resolveCacheSubject,
   resolveNovaTutoringMode,
-  NOVA_CHAT_SYSTEM_V3,
-} from "./novaTutoringPolicy";
-import { getBuiltinPrompt } from "./promptLibrary";
+} from "../../../supabase/functions/_shared/novaTutoringPolicy.ts";
+import { getBuiltinPrompt } from "../../../supabase/functions/_shared/promptLibrary.ts";
 
 function numbersMatch(a: string, b: string): boolean {
   const extract = (t: string) =>
@@ -103,6 +102,5 @@ describe("novaTutoringPolicy", () => {
     expect(p?.system_template).toMatch(/facts\.tutoring\.mode/);
     expect(p?.system_template).toMatch(/socratic/);
     expect(p?.system_template).toMatch(/Refuse attendance/);
-    expect(NOVA_CHAT_SYSTEM_V3).toMatch(/socratic/);
   });
 });

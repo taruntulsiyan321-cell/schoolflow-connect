@@ -828,10 +828,10 @@ paper screen. **None of it runs until `ai-gateway` is deployed**, and that is a
 decision rather than a step — see §5.5.
 
 The prompt, the schema, the per-format token budget and the quality guard live
-in ONE place: `supabase/functions/_shared/questionGenerator.ts`, mirrored from
-`src/academic/ai/questionGeneration.ts`. **The pair is gated** — a vitest
-comparison strips comments from both copies and fails on any drift, with a
-control that fails if the comparison is reading an empty string.
+in ONE place: `supabase/functions/_shared/questionGenerator.ts`. (It had a client
+copy, `src/academic/ai/questionGeneration.ts`, kept in step by a parity test;
+the copy was deleted 2026-10-07 and the test imports the module itself —
+KNOWN_ISSUES 117.)
 
 `dpp-generate-questions` already had all of this inline, reachable by that one
 function; it now calls the shared module, so there is one description of a good

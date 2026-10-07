@@ -1,13 +1,13 @@
 /**
- * Nova Context Builder — chip/subject dedupe + placeholder hygiene.
+ * Nova Context Builder — subject dedupe + placeholder hygiene, in the one
+ * module both the app and ai-gateway import.
  */
 import { describe, expect, it } from "vitest";
 import {
-  buildNovaUiChips,
   dedupeSubjects,
   isPlaceholderLabel,
-} from "./novaContextBuilder";
-import { buildContextPack, packForModel } from "./contextBuilder";
+} from "../../../supabase/functions/_shared/novaContextBuilder.ts";
+import { buildContextPack, packForModel } from "../../../supabase/functions/_shared/contextBuilder.ts";
 
 describe("Nova Context Builder", () => {
   it("merges Math/Maths/Mathematics aliases", () => {
@@ -30,62 +30,6 @@ describe("Nova Context Builder", () => {
     expect(isPlaceholderLabel("Topic")).toBe(true);
     expect(isPlaceholderLabel("—")).toBe(true);
     expect(isPlaceholderLabel("Trigonometry")).toBe(false);
-  });
-
-  it("prefers exam name over class for individual accounts", () => {
-    const chips = buildNovaUiChips({
-      classLabel: "11-A",
-      examName: "CUET",
-      subjects: ["Mathematics"],
-    });
-    const labels = chips.map((c) => c.label);
-    expect(labels).toContain("CUET");
-    expect(labels.some((l) => /Class 11/i.test(l))).toBe(false);
-  });
-
-  it("builds unique chips from live signals without placeholders", () => {
-    const chips = buildNovaUiChips({
-      classLabel: "11-A",
-      subjects: ["Mathematics", "mathematics", "Physics", "General", "Subject"],
-      homeworkPending: 2,
-      attendancePct: 91,
-      practiceSessions: 4,
-      mistakeCount: 3,
-      recoveryPending: 1,
-      xp: 1200,
-      level: 5,
-      studyStreak: 7,
-      weakConcepts: ["Sin Values", "Sin Values", "Topic"],
-      goal: "",
-    });
-    const labels = chips.map((c) => c.label);
-    expect(labels.filter((l) => /Mathematics/i.test(l)).length).toBeLessThanOrEqual(1);
-    expect(labels.some((l) => l === "General" || l === "Subject" || l === "Topic")).toBe(false);
-    expect(labels.some((l) => /study streak/i.test(l))).toBe(true);
-    expect(labels.some((l) => /HW pending/i.test(l))).toBe(false);
-    expect(labels.some((l) => /Attendance/i.test(l))).toBe(false);
-    expect(labels.some((l) => /Weak: Sin Values/i.test(l))).toBe(true);
-    // No invented demo chips when zeros
-    const empty = buildNovaUiChips({
-      subjects: [],
-      homeworkPending: 0,
-      attendancePct: 0,
-      practiceSessions: 0,
-      mistakeCount: 0,
-      recoveryPending: 0,
-      xp: 0,
-      level: 1,
-      studyStreak: 0,
-      weakConcepts: [],
-    });
-    expect(empty).toEqual([]);
-  });
-
-  it("does not invent Lv 1 when XP is present but level is missing", () => {
-    const chips = buildNovaUiChips({ xp: 400, subjects: [] });
-    const labels = chips.map((c) => c.label);
-    expect(labels.some((l) => /Lv\s*1/i.test(l))).toBe(false);
-    expect(labels.some((l) => /400/.test(l) && /XP/i.test(l))).toBe(true);
   });
 
   it("Ask Nova handoff is one-shot via sessionStorage", async () => {

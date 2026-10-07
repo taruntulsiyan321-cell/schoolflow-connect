@@ -7,7 +7,10 @@ import { useRevisionItems, isRevisionDue } from "@/gurukul/pages/useRevisionQueu
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { WEAK_CONCEPT_THRESHOLD } from "@/academic/eie/masteryBands";
-import { dedupeSubjects, isPlaceholderLabel } from "@/academic/ai/novaContextBuilder";
+import {
+  dedupeSubjects,
+  isPlaceholderLabel,
+} from "../../../supabase/functions/_shared/novaContextBuilder.ts";
 import { LoadingState, cn } from "@/gurukul/components/shared";
 import { REVISION_LIMITS, fetchRevisionGist, subjectForTopic, type RevisionGist, type RevisionStyle } from "./novaRevisionClient";
 import { RevisionGistView } from "./RevisionGistView";
