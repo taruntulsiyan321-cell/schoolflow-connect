@@ -162,7 +162,8 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
 - **~~C2. Lucky guesses go into revision~~ — DONE 2026-10-09 (20261152000000,
   KNOWN_ISSUES 121).** A right answer marked as a guess is
   not knowledge, yet today it never enters recovery or revision.
-- **C3. Does guessing pay, for this student.** With +5/−1 a guess pays above
+- **~~C3. Does guessing pay, for this student~~ — DONE 2026-10-09 (20261153000000,
+  KNOWN_ISSUES 122).** With +5/−1 a guess pays above
   one right in six. The guess tap (step 3b) gives each student their own rate;
   Analysis says "your guesses pay" or "leave them".
 - **C4. Start a chapter never practised** — one tap from the syllabus map

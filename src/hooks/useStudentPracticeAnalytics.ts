@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAcademicLive } from "@/academic";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { supabase } from "@/integrations/supabase/client";
+import type { GuessRecord } from "@/academic/metrics/guessing";
 
 /**
  * Per-topic, per-chapter and per-difficulty analytics, aggregated from
@@ -150,6 +151,12 @@ type StudentPracticeAnalytics = {
   by_difficulty: DifficultyAnalyticsRow[];
   /** Weakest first. Empty from a function older than 20261151000000. */
   by_form: FormAnalyticsRow[];
+  /**
+   * The answers marked "I'm guessing", across practice (20261153000000, C3).
+   * Null from a function older than that, or when it cannot be read — not a
+   * student with no guesses, which is { answered: 0, correct: 0 }.
+   */
+  guesses: GuessRecord | null;
   effort: EffortAnalytics | null;
   recurring: RecurringMistakeRow[];
   /**
@@ -268,6 +275,7 @@ function parseAnalytics(payload: unknown): { data: StudentPracticeAnalytics; ok:
         form: str(r.form),
         ...base(r),
       })),
+      guesses: guessesOf(p.guesses),
       // Null unless it carries the per-question counts: a payload from before
       // 20261115000000 has only the position-based ones, and reading their
       // absence as zero would print "0 seen again" about a student who has.
@@ -283,6 +291,13 @@ function parseAnalytics(payload: unknown): { data: StudentPracticeAnalytics; ok:
       topic_analysis_locked: p.topic_analysis_locked === true,
     },
   };
+}
+
+function guessesOf(v: unknown): GuessRecord | null {
+  if (!v || typeof v !== "object") return null;
+  const g = v as Record<string, unknown>;
+  if (!isCount(g.answered) || !isCount(g.correct)) return null;
+  return { answered: num(g.answered), correct: num(g.correct) };
 }
 
 function effortOf(v: unknown): EffortAnalytics | null {

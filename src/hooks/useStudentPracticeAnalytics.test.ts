@@ -62,6 +62,15 @@ describe("parseAnalytics", () => {
     expect(old.data.by_form).toEqual([]);
   });
 
+  it("reads the guesses, and tells none from unreadable (C3)", () => {
+    expect(parseAnalytics({ guesses: { answered: 12, correct: "3" } }).data.guesses).toEqual({ answered: 12, correct: 3 });
+    // A student with no guesses has a record of zero...
+    expect(parseAnalytics({ guesses: { answered: 0, correct: 0 } }).data.guesses).toEqual({ answered: 0, correct: 0 });
+    // ...which is not the same as no record at all.
+    expect(parseAnalytics({}).data.guesses).toBeNull();
+    expect(parseAnalytics({ guesses: { answered: 12 } }).data.guesses).toBeNull();
+  });
+
   it("coerces numeric strings, which is what JSON numerics can arrive as", () => {
     const { data, ok } = parseAnalytics({
       by_subject: [row({ attempts: "408", answered: "220", timed: "402", accuracy: "45.9" })],

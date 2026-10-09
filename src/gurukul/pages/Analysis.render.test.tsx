@@ -174,7 +174,7 @@ vi.mock("@/hooks/useExamPaper", () => ({
   useExamPaper: () => ({ data: { questions: 50, minutes: 60, marks_correct: 5, marks_wrong: -1 }, error: null }),
 }));
 // by_form per test: the fixture student met direct questions only.
-const forms = vi.hoisted(() => ({ rows: [] as unknown[] }));
+const forms = vi.hoisted(() => ({ rows: [] as unknown[], guesses: null as unknown }));
 vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
   useStudentPracticeAnalytics: () => ({
     data: {
@@ -186,6 +186,7 @@ vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
         { difficulty: "medium", rank: 2, attempts: 234, answered: 96, timed: 94, correct: 46, skipped: 138, accuracy: 47.9, avg_sec: 2.6 },
       ],
       by_form: forms.rows,
+      guesses: forms.guesses,
       effort: { attempts: 564, questions_seen_again: 481, first_try_attempts: 56, first_try_correct: 20 },
       recurring: [],
     },
@@ -201,6 +202,7 @@ const openTab = (label: string) => fireEvent.click(screen.getByRole("tab", { nam
 describe("Analysis — rendered", () => {
   beforeEach(() => {
     forms.rows = [];
+    forms.guesses = null;
   });
 
   it("agrees the verb with the count it just pluralised", () => {
@@ -349,6 +351,42 @@ describe("Analysis — rendered", () => {
     // Every match question skipped: said as skips, not as 0%.
     expect(rows[2]).toHaveTextContent("0 of 0 · 10 skips");
     expect(within(rows[2]).queryByText("0%")).toBeNull();
+  });
+
+  it("says whether guessing pays, against the real paper's marking (C3)", () => {
+    // 2 of 10 right: 20% beats one in six at +5/−1; 2 × 5 − 8 × 1 = +2.
+    forms.guesses = { answered: 10, correct: 2 };
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
+    openTab("Practice");
+    const card = screen.getByTestId("guessing-pays");
+    expect(card).toHaveAttribute("data-verdict", "pays");
+    expect(card).toHaveTextContent("Your guesses pay.");
+    expect(card).toHaveTextContent("2 of 10 guesses right (20%) — more than the 1 in 6 a guess must get right to gain marks at +5/−1. Marked that way they came to +2 marks.");
+    expect(card).toHaveTextContent("On the paper, an answer you would guess is worth giving.");
+  });
+
+  it("says to leave them when guessing loses marks, and waits for enough guesses (C3)", () => {
+    forms.guesses = { answered: 10, correct: 1 };
+    const { unmount } = render(<MemoryRouter><Analysis /></MemoryRouter>);
+    openTab("Practice");
+    expect(screen.getByTestId("guessing-pays")).toHaveTextContent("Leave them blank.");
+    expect(screen.getByTestId("guessing-pays")).toHaveTextContent("came to −4 marks");
+    expect(screen.getByTestId("guessing-pays")).toHaveTextContent("On the paper, leave a question blank rather than guess it.");
+    unmount();
+    forms.guesses = { answered: 3, correct: 3 };
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
+    openTab("Practice");
+    expect(screen.getByTestId("guessing-pays")).toHaveAttribute("data-verdict", "unknown");
+    expect(screen.queryByText("Your guesses pay.")).toBeNull();
+  });
+
+  it("shows no guessing card for a student who has never marked a guess (C3)", () => {
+    forms.guesses = { answered: 0, correct: 0 };
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
+    openTab("Practice");
+    expect(screen.queryByText("Does guessing pay for you?")).toBeNull();
+    // CONTROL: the tab is drawn.
+    expect(screen.getByText("How you do by difficulty")).toBeInTheDocument();
   });
 
   it("reports how the student works per question, and not what it cannot measure", () => {

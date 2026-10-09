@@ -5405,3 +5405,27 @@ practice (`question_attempts.confidence`) and on a mock paper (`mock_answers.gue
 * No lucky guess from before today exists to back-fill: 2 tapped answers in all, neither right.
 
 **Open:** nothing found.
+
+## 122. Does guessing pay, for this student — BUILT and LIVE 2026-10-09 (20261153000000); what is open
+
+**docs/TODO.md C3.** `rpc_student_practice_analytics` gains `guesses`: the practice answers the student marked
+"I'm guessing" (`_marked_as_guess`), answered and right. `src/academic/metrics/guessing.ts` reads them against the
+paper the server states. A guess pays once more than |W| / (R + |W|) come out right: 1 in 6 at +5/−1, and exactly
+at the break-even it does not pay. It gives no verdict below `MIN_OBSERVATIONS_FOR_VERDICT`. Analysis → Practice
+shows "Does guessing pay for you?" once a guess has been marked. It gives the student's rate against the
+break-even, what their guesses came to under the paper's marking, and what to do on the paper: give the answer, or
+leave it blank. It states a fact and a next step, not praise (§10.8).
+
+**Measured:**
+* The migration's proof inserts six attempts and rolls them back: two guessed right, one guessed wrong, one guessed
+  skipped, one right without the tap, and one guessed but left out of accuracy. They move `guesses` by exactly 3
+  answered and 2 right, and `by_form` by 5.
+* 3 mutants are refused, and the round trip passes.
+* 7 client mutants are killed: the break-even, the floor, at-the-break-even, the verdict and advice words, and a
+  missing record read as zero.
+
+**Open:**
+1. **Almost no student has a verdict yet.** Measured 2026-10-09: 2 tapped answers in the whole database, both
+   before today. The card appears once a student uses the tap, and a verdict after 5 guesses.
+2. **Practice only**, as Analysis is (rule 11). A mock paper's guesses are read on its own result, not counted
+   here.

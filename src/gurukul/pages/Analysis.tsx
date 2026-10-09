@@ -77,6 +77,8 @@ import { SyllabusCoverage } from "@/components/student/analysis/SyllabusCoverage
 import { SlippingTopics } from "@/components/student/analysis/SlippingTopics";
 import { ReadinessEstimate } from "@/components/student/analysis/ReadinessEstimate";
 import { FormAccuracy } from "@/components/student/analysis/FormAccuracy";
+import { GuessingPays } from "@/components/student/analysis/GuessingPays";
+import { guessVerdict } from "@/academic/metrics/guessing";
 import { readinessRows } from "@/academic/metrics/readiness";
 
 
@@ -694,6 +696,12 @@ export default function Analysis() {
       ? readinessRows(paper, syllabus, (practiceAnalytics?.by_subject ?? []).map((s) => ({ subject: s.subject, answered: s.answered, correct: s.correct })))
       : []),
     [paper, syllabus, practiceAnalytics?.by_subject],
+  );
+
+  // C3: the student's own guess rate against the paper's marking.
+  const guessing = useMemo(
+    () => (paper && practiceAnalytics?.guesses ? guessVerdict(practiceAnalytics.guesses, paper) : null),
+    [paper, practiceAnalytics?.guesses],
   );
 
   const subjectPace = useMemo(() => {
@@ -1997,6 +2005,14 @@ export default function Analysis() {
             {(practiceAnalytics?.by_form ?? []).length > 1 && (
               <Card label="How you do by kind of question">
                 <FormAccuracy rows={practiceAnalytics?.by_form ?? []} />
+              </Card>
+            )}
+
+            {/* ── Does guessing pay (C3) ──────────────────────────────────
+                Only once the student has marked an answer as a guess. */}
+            {guessing && paper && (
+              <Card label="Does guessing pay for you?">
+                <GuessingPays verdict={guessing} paper={paper} />
               </Card>
             )}
 
