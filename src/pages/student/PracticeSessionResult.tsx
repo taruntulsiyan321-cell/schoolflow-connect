@@ -15,7 +15,6 @@ import { ArrowLeft, Save } from "lucide-react";
 import { PageHeader } from "@/gurukul/components/shared";
 import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   buildPracticeRecoveryReport,
@@ -39,22 +38,16 @@ import { markRefFromAttempt } from "@/lib/questionMarks";
 import { useQuestionMarks } from "@/components/student/questionMarks/useQuestionMarks";
 import { useQuestionReports } from "@/components/student/questionReports/useQuestionReports";
 import { fetchSessionAnalysisContext, type SessionAnalysisContext } from "@/lib/sessionAnalysisContext";
-import { analyseSession, type NoteKey, type QuestionFilter } from "@/components/student/sessionResult/analyseSession";
+import { analyseSession } from "@/components/student/sessionResult/analyseSession";
 import { QuestionsTab } from "@/components/student/sessionResult/QuestionsTab";
 import { SessionQuestionCard } from "@/components/student/sessionResult/SessionQuestionCard";
+import { SessionTabBar } from "@/components/student/sessionResult/SessionTabs";
+import { useSessionTabs } from "@/components/student/sessionResult/useSessionTabs";
 import { SessionVerdicts } from "@/components/student/sessionResult/SessionVerdicts";
 import { SummaryTab } from "@/components/student/sessionResult/SummaryTab";
 import { TimeTab } from "@/components/student/sessionResult/TimeTab";
 import { TopicsTab } from "@/components/student/sessionResult/TopicsTab";
 import type { AttemptRow } from "@/components/student/sessionResult/types";
-
-type SessionTab = "summary" | "topics" | "time" | "questions";
-const SESSION_TABS: ReadonlyArray<{ key: SessionTab; label: string }> = [
-  { key: "summary", label: "Summary" },
-  { key: "topics", label: "Topics" },
-  { key: "time", label: "Time" },
-  { key: "questions", label: "Questions" },
-];
 
 function readLocalState(id: string): PracticeSessionResultState | null {
   try {
@@ -178,17 +171,7 @@ export default function PracticeSessionResult() {
   }, [user, id]);
   const analysis = useMemo(() => analyseSession(displayAttempts, context), [displayAttempts, context]);
 
-  const [tab, setTab] = useState<SessionTab>("summary");
-  const [filter, setFilter] = useState<QuestionFilter["key"]>("all");
-  const [scrollTo, setScrollTo] = useState<number | null>(null);
-  useEffect(() => {
-    if (tab !== "questions" || scrollTo == null) return;
-    const el = document.getElementById(`question-${scrollTo + 1}`);
-    el?.scrollIntoView({ behavior: "smooth", block: "start" });
-    setScrollTo(null);
-  }, [tab, scrollTo]);
-  const showQuestions = (key: NoteKey) => { setFilter(key); setTab("questions"); };
-  const showQuestion = (order: number) => { setFilter("all"); setTab("questions"); setScrollTo(order); };
+  const { tab, setTab, filter, setFilter, showQuestions, showQuestion } = useSessionTabs();
 
   // `||`, not `??`: a session with no single subject stores "" — an empty
   // string is an absent subject, not one to print.
@@ -469,26 +452,7 @@ export default function PracticeSessionResult() {
         </Button>
       </div>
 
-      {/* Owner, 2026-10-03: the analysis grew past one scroll, so it is filed in
-          four places — the session at a glance, where the marks went, how time
-          went, and the questions themselves. */}
-      <div role="tablist" aria-label="Session analysis" className="mb-5 -mx-1 flex gap-0 overflow-x-auto border-b border-border/70 px-1">
-        {SESSION_TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.key}
-            onClick={() => setTab(t.key)}
-            className={cn(
-              "shrink-0 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-all duration-150",
-              tab === t.key ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SessionTabBar tab={tab} onTab={setTab} label="Session analysis" />
 
       {tab === "summary" && (
         <SummaryTab
@@ -505,6 +469,12 @@ export default function PracticeSessionResult() {
           }}
           subjectRaw={subjectRaw}
           chapterRaw={chapterRaw}
+          // A session is compared with the last one on its chapter; one that
+          // spanned chapters has no single last time.
+          compare={chapter ? {
+            title: `your last session on ${chapter}`,
+            first: "This is your first session on this chapter. Your next one will be compared with it.",
+          } : null}
           recommendations={recommendations}
           insights={insights}
           onShowQuestions={showQuestions}

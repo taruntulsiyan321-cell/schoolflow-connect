@@ -3654,6 +3654,153 @@ export type Database = {
           },
         ]
       }
+      exam_blueprint_chapters: {
+        Row: {
+          chapter_id: string
+          exam_id: string
+          option: string
+          option_group: string
+          questions: number
+        }
+        Insert: {
+          chapter_id: string
+          exam_id: string
+          option?: string
+          option_group?: string
+          questions: number
+        }
+        Update: {
+          chapter_id?: string
+          exam_id?: string
+          option?: string
+          option_group?: string
+          questions?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_blueprint_chapters_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_blueprint_chapters_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "competitive_exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_blueprint_forms: {
+        Row: {
+          exam_id: string
+          form: string
+          option: string
+          option_group: string
+          questions: number
+          subject: string
+        }
+        Insert: {
+          exam_id: string
+          form: string
+          option?: string
+          option_group?: string
+          questions: number
+          subject: string
+        }
+        Update: {
+          exam_id?: string
+          form?: string
+          option?: string
+          option_group?: string
+          questions?: number
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_blueprint_forms_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "competitive_exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_blueprint_options: {
+        Row: {
+          exam_id: string
+          group_label: string
+          label: string
+          option: string
+          option_group: string
+          position: number
+          subject: string
+        }
+        Insert: {
+          exam_id: string
+          group_label: string
+          label: string
+          option: string
+          option_group: string
+          position: number
+          subject: string
+        }
+        Update: {
+          exam_id?: string
+          group_label?: string
+          label?: string
+          option?: string
+          option_group?: string
+          position?: number
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_blueprint_options_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "competitive_exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_option_choices: {
+        Row: {
+          account_id: string
+          chosen_at: string
+          exam_id: string
+          option: string
+          option_group: string
+          subject: string
+        }
+        Insert: {
+          account_id: string
+          chosen_at?: string
+          exam_id: string
+          option: string
+          option_group: string
+          subject: string
+        }
+        Update: {
+          account_id?: string
+          chosen_at?: string
+          exam_id?: string
+          option?: string
+          option_group?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_option_choices_exam_id_subject_option_group_option_fkey"
+            columns: ["exam_id", "subject", "option_group", "option"]
+            isOneToOne: false
+            referencedRelation: "exam_blueprint_options"
+            referencedColumns: ["exam_id", "subject", "option_group", "option"]
+          },
+        ]
+      }
       exam_subjects: {
         Row: {
           created_at: string
@@ -4873,6 +5020,7 @@ export type Database = {
         Row: {
           attempt_id: string
           choice: number | null
+          guessed: boolean | null
           is_correct: boolean | null
           marked: boolean
           question_id: string
@@ -4882,6 +5030,7 @@ export type Database = {
         Insert: {
           attempt_id: string
           choice?: number | null
+          guessed?: boolean | null
           is_correct?: boolean | null
           marked?: boolean
           question_id: string
@@ -4891,6 +5040,7 @@ export type Database = {
         Update: {
           attempt_id?: string
           choice?: number | null
+          guessed?: boolean | null
           is_correct?: boolean | null
           marked?: boolean
           question_id?: string
@@ -4912,15 +5062,15 @@ export type Database = {
           auto_submitted: boolean
           correct: number | null
           deadline: string
-          exam_id: string
           id: string
           marks_correct: number
           marks_wrong: number
-          question_ids: string[]
+          paper_id: string
           score: number | null
+          seen_before: number
           started_at: string
-          subject: string
           submitted_at: string | null
+          total: number
           unanswered: number | null
           usage_period_key: string | null
           user_id: string
@@ -4931,15 +5081,15 @@ export type Database = {
           auto_submitted?: boolean
           correct?: number | null
           deadline: string
-          exam_id: string
           id?: string
           marks_correct: number
           marks_wrong: number
-          question_ids: string[]
+          paper_id: string
           score?: number | null
+          seen_before?: number
           started_at?: string
-          subject: string
           submitted_at?: string | null
+          total: number
           unanswered?: number | null
           usage_period_key?: string | null
           user_id: string
@@ -4950,15 +5100,15 @@ export type Database = {
           auto_submitted?: boolean
           correct?: number | null
           deadline?: string
-          exam_id?: string
           id?: string
           marks_correct?: number
           marks_wrong?: number
-          question_ids?: string[]
+          paper_id?: string
           score?: number | null
+          seen_before?: number
           started_at?: string
-          subject?: string
           submitted_at?: string | null
+          total?: number
           unanswered?: number | null
           usage_period_key?: string | null
           user_id?: string
@@ -4967,7 +5117,58 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "mock_attempts_exam_id_fkey"
+            foreignKeyName: "mock_attempts_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "mock_papers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mock_papers: {
+        Row: {
+          chapter_id: string | null
+          created_at: string
+          created_for: string | null
+          exam_id: string
+          id: string
+          options: Json
+          question_ids: string[]
+          short: Json
+          subject: string
+        }
+        Insert: {
+          chapter_id?: string | null
+          created_at?: string
+          created_for?: string | null
+          exam_id: string
+          id?: string
+          options?: Json
+          question_ids: string[]
+          short?: Json
+          subject: string
+        }
+        Update: {
+          chapter_id?: string | null
+          created_at?: string
+          created_for?: string | null
+          exam_id?: string
+          id?: string
+          options?: Json
+          question_ids?: string[]
+          short?: Json
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mock_papers_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mock_papers_exam_id_fkey"
             columns: ["exam_id"]
             isOneToOne: false
             referencedRelation: "competitive_exams"
@@ -10895,22 +11096,73 @@ export type Database = {
       }
       _humanize_template_type: { Args: { _t: string }; Returns: string }
       _maybe_finish_battle: { Args: { _battle_id: string }; Returns: undefined }
+      _mock_build: {
+        Args: {
+          _chapter: string
+          _exam: string
+          _options: Json
+          _subject: string
+          _uid: string
+        }
+        Returns: Json
+      }
       _mock_close_expired: { Args: { _uid: string }; Returns: number }
       _mock_grade: {
         Args: { _attempt: string; _auto: boolean }
         Returns: undefined
       }
-      _mock_paper: { Args: never; Returns: Json }
-      _mock_paper_view: { Args: { _attempt: string }; Returns: Json }
-      _mock_pick_questions: { Args: { _subject: string }; Returns: string[] }
-      _mock_result_json: { Args: { _attempt: string }; Returns: Json }
-      _mock_subject_supply: {
-        Args: never
+      _mock_history: {
+        Args: { _uid: string }
         Returns: {
-          chapters: number
-          questions: number
-          ready: boolean
+          last_at: string
+          qid: string
+          troubled: boolean
+        }[]
+      }
+      _mock_options: {
+        Args: {
+          _chapter: string
+          _exam: string
+          _subject: string
+          _uid: string
+        }
+        Returns: Json
+      }
+      _mock_paper: { Args: never; Returns: Json }
+      _mock_paper_preview: {
+        Args: { _paper: string; _uid: string }
+        Returns: Json
+      }
+      _mock_paper_view: { Args: { _attempt: string }; Returns: Json }
+      _mock_pool: {
+        Args: { _chapter: string; _exam: string; _subject: string }
+        Returns: {
+          chapter_id: string
+          form: string
+          id: string
+        }[]
+      }
+      _mock_result_json: { Args: { _attempt: string }; Returns: Json }
+      _mock_syllabus: {
+        Args: { _exam: string; _stream: string }
+        Returns: {
+          chapter: string
+          chapter_id: string
+          seq: number
           subject: string
+        }[]
+      }
+      _mock_targets: {
+        Args: {
+          _chapter: string
+          _exam: string
+          _options: Json
+          _subject: string
+        }
+        Returns: {
+          key: string
+          kind: string
+          questions: number
         }[]
       }
       _normalize_cp1252_mojibake_to_latin1: {
@@ -12414,20 +12666,26 @@ export type Database = {
         Args: { _participant_id: string; _question_id: string }
         Returns: string
       }
+      rpc_mock_analysis_context: { Args: { _attempt: string }; Returns: Json }
       rpc_mock_catalog: { Args: never; Returns: Json }
       rpc_mock_paper: { Args: { _attempt: string }; Returns: Json }
+      rpc_mock_prepare: {
+        Args: { _chapter?: string; _subject: string }
+        Returns: Json
+      }
       rpc_mock_result: { Args: { _attempt: string }; Returns: Json }
       rpc_mock_save_answer: {
         Args: {
           _attempt: string
           _choice?: number
+          _guessed?: boolean
           _marked?: boolean
           _question: string
           _time_ms?: number
         }
         Returns: Json
       }
-      rpc_mock_start: { Args: { _subject: string }; Returns: Json }
+      rpc_mock_start: { Args: { _paper: string }; Returns: Json }
       rpc_mock_submit: { Args: { _attempt: string }; Returns: Json }
       rpc_my_mock_history: { Args: never; Returns: Json }
       rpc_my_premium: { Args: never; Returns: Json }
@@ -12851,6 +13109,10 @@ export type Database = {
       rpc_set_equipped_badge: {
         Args: { _badge_code: string }
         Returns: undefined
+      }
+      rpc_set_exam_option: {
+        Args: { _group: string; _option: string; _subject: string }
+        Returns: Json
       }
       rpc_set_featured_badges: {
         Args: { _badges: string[] }

@@ -1,6 +1,6 @@
 /**
- * Sitting a mock paper: the clock, the palette, the saves, and the two ways a
- * paper ends.
+ * Sitting a mock paper: the clock, the palette, the saves, the guess tap, and
+ * the two ways a paper ends.
  *
  * The paper fed in is four questions with a 90-second deadline, so the hour
  * running out can actually be reached in a test.
@@ -55,17 +55,22 @@ const question = (n: number, over: Record<string, unknown> = {}) => ({
   chapter: `Chapter ${n}`,
   choice: null,
   marked: false,
+  guessed: null,
   ...over,
 });
 
 function paper(over: Record<string, unknown> = {}) {
   return {
     id: "att",
+    paper_id: "paper-1",
     subject: "Mathematics",
+    chapter_id: null,
+    chapter: null,
     started_at: new Date().toISOString(),
     deadline: new Date(Date.now() + 90_000).toISOString(),
     submitted_at: null,
     total: 4,
+    seen_before: 0,
     marks_correct: 4,
     marks_wrong: -2,
     max_score: 16,
@@ -154,7 +159,8 @@ describe("answering", () => {
     fireEvent.click(await screen.findByText("Beta"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
     expect(state.saved).toHaveLength(1);
-    expect(state.saved[0]).toMatchObject({ attempt: "att", question: "q1", choice: 1, marked: false });
+    // Answered with the tap left off: "not a guess", which is a value, not "not said".
+    expect(state.saved[0]).toMatchObject({ attempt: "att", question: "q1", choice: 1, marked: false, guessed: false });
     expect(typeof state.saved[0].timeMs).toBe("number");
     expect(screen.getByText("1/4 answered")).toBeInTheDocument();
   });
@@ -187,6 +193,63 @@ describe("answering", () => {
     fireEvent.click(await screen.findByText("Delta"));
     await waitFor(() => expect(state.submitted).toBe(1));
     await waitFor(() => expect(state.navigated[0]).toEqual(["/student/mock/att/result", { replace: true }]));
+  });
+});
+
+describe("the guess tap", () => {
+  const tap = () => screen.getByRole("button", { name: "I'm guessing" });
+
+  it("marks an answer as a guess, saved with the answer", async () => {
+    draw();
+    fireEvent.click(await screen.findByText("Beta"));
+    await waitFor(() => expect(state.saved).toHaveLength(1));
+    expect(tap()).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(tap());
+    await waitFor(() => expect(state.saved).toHaveLength(2));
+    expect(state.saved[1]).toMatchObject({ question: "q1", choice: 1, guessed: true });
+    expect(tap()).toHaveAttribute("aria-pressed", "true");
+    // And off again.
+    fireEvent.click(tap());
+    await waitFor(() => expect(state.saved).toHaveLength(3));
+    expect(state.saved[2]).toMatchObject({ choice: 1, guessed: false });
+  });
+
+  it("tapped before answering, saves nothing on its own and goes with the answer", async () => {
+    draw();
+    await screen.findByText("Question number 1?");
+    fireEvent.click(tap());
+    expect(tap()).toHaveAttribute("aria-pressed", "true");
+    // Nothing is saving, and once every queued save has had its turn, nothing was sent.
+    expect(screen.queryByText("Saving…")).toBeNull();
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    expect(state.saved).toHaveLength(0);
+    fireEvent.click(screen.getByText("Gamma"));
+    await waitFor(() => expect(state.saved).toHaveLength(1));
+    expect(state.saved[0]).toMatchObject({ choice: 2, guessed: true });
+  });
+
+  it("is cleared with the answer — a blank is no guess", async () => {
+    draw();
+    await screen.findByText("Question number 1?");
+    fireEvent.click(tap());
+    fireEvent.click(screen.getByText("Alpha"));
+    await waitFor(() => expect(state.saved).toHaveLength(1));
+    fireEvent.click(screen.getByText("Clear answer"));
+    await waitFor(() => expect(state.saved).toHaveLength(2));
+    expect(state.saved[1]).toMatchObject({ choice: null, guessed: null });
+    expect(tap()).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("shows a guess saved earlier, and is not offered on a withdrawn question", async () => {
+    state.paper = paper({ questions: [question(1, { choice: 1, guessed: true }), question(2, { available: false })] });
+    draw();
+    await screen.findByText("Question number 1?");
+    expect(tap()).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: /^Question 2/ }));
+    await screen.findByTestId("mock-question-withdrawn");
+    expect(screen.queryByRole("button", { name: "I'm guessing" })).toBeNull();
   });
 });
 

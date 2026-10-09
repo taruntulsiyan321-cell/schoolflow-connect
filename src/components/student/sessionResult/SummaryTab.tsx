@@ -3,7 +3,8 @@ import { BarChart2, HelpCircle, History, Lightbulb, Target } from "lucide-react"
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScoreRing } from "@/components/student/ScoreRing";
-import { displayChapter, displayTopic } from "@/lib/academicPresentation";
+import { displayTopic } from "@/lib/academicPresentation";
+import { UNFILED } from "@/academic/metrics/sessionAnalysis";
 import { formatSeconds } from "@/lib/studentAnalysisMetrics";
 import { pluralise } from "@/lib/plural";
 import type { NoteKey, SessionAnalysis } from "./analyseSession";
@@ -18,11 +19,18 @@ type Props = {
     skipped: number;
     accuracyLabel: string;
     durationLabel: string;
-    xpLabel: string;
+    /** Left out where nothing earns XP — a mock paper. */
+    xpLabel?: string;
     avgSec: number | null;
   };
   subjectRaw: string;
   chapterRaw: string;
+  /**
+   * What the comparison with the last time is against, in the caller's words —
+   * "your last session on Ratio Analysis", "your last Accountancy paper" — and
+   * what to say when there is no last time. Null shows no comparison.
+   */
+  compare: { title: string; first: string } | null;
   recommendations: string[];
   insights: { headline?: string | null; bullets?: string[] | null } | null | undefined;
   onShowQuestions: (filter: NoteKey) => void;
@@ -32,9 +40,9 @@ type Props = {
 const signed = (n: number, one: string, many: string) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n)} ${Math.abs(n) === 1 ? one : many}`;
 
 /** The session at a glance, and what to do about it. Numbers and movement only — §10.8, no praise. */
-export function SummaryTab({ analysis, stats, subjectRaw, chapterRaw, recommendations, insights, onShowQuestions }: Props) {
+export function SummaryTab({ analysis, stats, subjectRaw, chapterRaw, compare, recommendations, insights, onShowQuestions }: Props) {
   const { marks, comparison, metBefore, fix, paper, guesses } = analysis;
-  const practiseHref = fix
+  const practiseHref = fix && fix.key !== UNFILED
     ? `/student/practice?${new URLSearchParams({
         ...(subjectRaw ? { subject: subjectRaw } : {}),
         ...(chapterRaw ? { chapter: chapterRaw } : {}),
@@ -57,7 +65,7 @@ export function SummaryTab({ analysis, stats, subjectRaw, chapterRaw, recommenda
             ["Skipped", String(stats.skipped)],
             ["Time", stats.durationLabel],
             ["Per answer", stats.avgSec != null ? formatSeconds(stats.avgSec) : "—"],
-            ["XP earned", stats.xpLabel],
+            ...(stats.xpLabel != null ? [["XP earned", stats.xpLabel]] : []),
           ].map(([label, value]) => (
             <div key={label} className="rounded-lg border border-border p-3">
               <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -105,9 +113,9 @@ export function SummaryTab({ analysis, stats, subjectRaw, chapterRaw, recommenda
 
       {/* Only once the server's context is in: without it nothing is known
           about earlier sessions, and "your first session" would be a guess. */}
-      {chapterRaw && paper && (
+      {compare && paper && (
         <Card className="p-5" data-testid="summary-comparison">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><History className="h-4 w-4" aria-hidden /> Since your last session on {displayChapter(chapterRaw)}</h3>
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><History className="h-4 w-4" aria-hidden /> Since {compare.title}</h3>
           {comparison ? (
             <div className="space-y-3 text-sm">
               <p className="text-xs text-muted-foreground">
@@ -153,7 +161,7 @@ export function SummaryTab({ analysis, stats, subjectRaw, chapterRaw, recommenda
               )}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">This is your first session on this chapter. Your next one will be compared with it.</p>
+            <p className="text-sm text-muted-foreground">{compare.first}</p>
           )}
         </Card>
       )}

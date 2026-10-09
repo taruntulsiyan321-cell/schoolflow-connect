@@ -13,10 +13,14 @@ const rpc = vi.fn();
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: (...a: unknown[]) => rpc(...a) } }));
 
 const {
-  MockError, PALETTE_WORDS, fetchMockCatalog, fetchMockHistory, formatCountdown, marksSentence,
-  notEnoughYet, paletteState, remainingMs, saveMockAnswer, startMock, submitMock,
+  MockError, PALETTE_WORDS, fetchMockAnalysisContext, fetchMockCatalog, fetchMockHistory, formatCountdown, formsSentence,
+  marksSentence, mockResultToAttemptRows, notEnoughYet, paletteState, prepareMock, remainingMs, saveMockAnswer,
+  seenBeforeSentence, setExamOption, shortSentence, startMock, submitMock,
 } = await import("./mockTest");
 const { PlanLimitError } = await import("./premium");
+const { ANSWERED_UNMARKED, MARKED_AS_GUESS } = await import("@/academic/metrics/answerConfidence");
+type MockResultShape = import("./mockTest").MockResult;
+type MockReviewQuestion = import("./mockTest").MockReviewQuestion;
 
 beforeEach(() => {
   rpc.mockReset();
@@ -81,13 +85,36 @@ describe("what the screen says, from what the server said", () => {
       .toBe("+5 for a right answer, −1 for a wrong one, 0 if you leave it.");
   });
 
-  it("says how short a subject is, with both counts", () => {
-    const paper = { questions: 40, minutes: 30, marks_correct: 4, marks_wrong: -2, min_chapters: 5, max_per_chapter: 8, max_score: 160 };
-    expect(notEnoughYet({ subject: "Accountancy", questions: 22, chapters: 3, ready: false }, paper))
-      .toBe("22 of 40 questions ready, from 3 chapters.");
-    // One chapter is not "1 chapters".
-    expect(notEnoughYet({ subject: "Law", questions: 8, chapters: 1, ready: false }, paper))
-      .toBe("8 of 40 questions ready, from 1 chapter.");
+  it("says how short a subject or chapter is, with both counts", () => {
+    expect(notEnoughYet(22, { questions: 40 })).toBe("22 of 40 questions ready.");
+    expect(notEnoughYet(0, { questions: 50 })).toBe("0 of 50 questions ready.");
+  });
+
+  it("says before the paper starts how many of its questions were met, and which come first (B4.3)", () => {
+    expect(seenBeforeSentence({ seen_before: 0, troubled: 0 })).toBeNull();
+    expect(seenBeforeSentence({ seen_before: 18, troubled: 18 }))
+      .toBe("This paper includes 18 questions you've seen before — ones you got wrong, left or guessed.");
+    expect(seenBeforeSentence({ seen_before: 1, troubled: 0 }))
+      .toBe("This paper includes 1 question you've seen before — ones you got right longest ago.");
+    expect(seenBeforeSentence({ seen_before: 18, troubled: 7 }))
+      .toBe("This paper includes 18 questions you've seen before — first the 7 you got wrong, left or guessed, then ones you got right longest ago.");
+  });
+
+  it("names every chapter that came up short, once", () => {
+    expect(shortSentence([])).toBeNull();
+    expect(shortSentence([
+      { chapter_id: "c1", chapter: "Computerised Accounting System", wanted: 13, got: 9 },
+      { chapter_id: "c2", chapter: "Ratio Analysis", wanted: 5, got: 0 },
+    ])).toBe("Computerised Accounting System gave 9 of its 13; Ratio Analysis gave 0 of its 5. The rest come from the other chapters.");
+  });
+
+  it("says when the paper has fewer non-direct questions than the blueprint sets, from the blueprint it was sent", () => {
+    // Not the ruled blueprint: 7 non-direct wanted, 3 held.
+    expect(formsSentence({ forms: { mcq: 37, match: 3 }, blueprint_forms: { mcq: 33, match: 4, sequence: 3 } }))
+      .toBe("The real paper sets 7 statement, match, sequence and passage questions; this one has 3 — the bank does not hold more of them yet.");
+    expect(formsSentence({ forms: { mcq: 33, match: 7 }, blueprint_forms: { mcq: 33, match: 4, sequence: 3 } })).toBeNull();
+    // CONTROL: direct questions do not count toward the share.
+    expect(formsSentence({ forms: { mcq: 40 }, blueprint_forms: { mcq: 40 } })).toBeNull();
   });
 });
 
@@ -119,10 +146,21 @@ describe("a refusal keeps the server's words", () => {
         hint: "limit_reached",
       },
     });
-    const e = await startMock("Mathematics").catch((x) => x);
+    const e = await startMock("paper-1").catch((x) => x);
     expect(e).toBeInstanceOf(PlanLimitError);
     expect(e.planLimit.reason).toBe("limit_reached");
     expect(e.planLimit.message).toBe("You've used your 1 mock test.");
+  });
+
+  it("names the refusals a library of papers adds", async () => {
+    rpc.mockResolvedValue(failure("mock_paper_already_sat"));
+    const e = await startMock("paper-1").catch((x) => x);
+    expect(e).toBeInstanceOf(MockError);
+    expect(e.refusal).toBe("mock_paper_already_sat");
+    rpc.mockResolvedValue(failure("mock_option_not_chosen", "Choose your Unit V first."));
+    const f = await prepareMock("Accountancy").catch((x) => x);
+    expect(f.refusal).toBe("mock_option_not_chosen");
+    expect(f.message).toBe("Choose your Unit V first.");
   });
 
   it("is an ordinary failure when it is not one of ours", async () => {
@@ -134,6 +172,28 @@ describe("a refusal keeps the server's words", () => {
   });
 });
 
+describe("preparing and starting a paper", () => {
+  it("prepares a whole-subject paper by leaving _chapter out, and a chapter paper by naming it", async () => {
+    rpc.mockResolvedValue(success({ paper_id: "p" }));
+    await prepareMock("Accountancy");
+    expect(rpc).toHaveBeenLastCalledWith("rpc_mock_prepare", { _subject: "Accountancy" });
+    await prepareMock("Accountancy", "ch-1");
+    expect(rpc).toHaveBeenLastCalledWith("rpc_mock_prepare", { _subject: "Accountancy", _chapter: "ch-1" });
+  });
+
+  it("starts the paper it prepared, by its id", async () => {
+    rpc.mockResolvedValue(success({ id: "att" }));
+    await startMock("paper-1");
+    expect(rpc).toHaveBeenCalledWith("rpc_mock_start", { _paper: "paper-1" });
+  });
+
+  it("saves a subject's once-only choice", async () => {
+    rpc.mockResolvedValue(success({ label: "Analysis of Financial Statements" }));
+    await setExamOption("Accountancy", "unit_v", "analysis");
+    expect(rpc).toHaveBeenCalledWith("rpc_set_exam_option", { _subject: "Accountancy", _group: "unit_v", _option: "analysis" });
+  });
+});
+
 describe("saving an answer", () => {
   it("sends the choice, the flag and the time spent", async () => {
     rpc.mockResolvedValue(success({ saved: true, deadline: "2026-09-27T11:00:00Z" }));
@@ -141,6 +201,17 @@ describe("saving an answer", () => {
     expect(rpc).toHaveBeenCalledWith("rpc_mock_save_answer", {
       _attempt: "att", _question: "q", _choice: 2, _marked: true, _time_ms: 4322,
     });
+  });
+
+  it("sends the guess when it is said either way, and leaves it out when it is not", async () => {
+    rpc.mockResolvedValue(success({ saved: true, deadline: "x" }));
+    await saveMockAnswer({ attempt: "att", question: "q", choice: 1, guessed: true });
+    expect((rpc.mock.calls[0][1] as Record<string, unknown>)._guessed).toBe(true);
+    // CONTROL: false is "answered without the tap" — a value, not "not said".
+    await saveMockAnswer({ attempt: "att", question: "q", choice: 1, guessed: false });
+    expect((rpc.mock.calls[1][1] as Record<string, unknown>)._guessed).toBe(false);
+    await saveMockAnswer({ attempt: "att", question: "q", choice: null, guessed: null });
+    expect("_guessed" in (rpc.mock.calls[2][1] as Record<string, unknown>)).toBe(false);
   });
 
   it("clears an answer by leaving _choice out, because its SQL default is NULL", async () => {
@@ -165,5 +236,65 @@ describe("reads", () => {
   it("treats a history that is not a list as no papers", async () => {
     rpc.mockResolvedValue(success(null));
     expect(await fetchMockHistory()).toEqual([]);
+  });
+
+  it("asks the analysis context of the attempt", async () => {
+    rpc.mockResolvedValue(success({ paper: {} }));
+    await fetchMockAnalysisContext("att");
+    expect(rpc).toHaveBeenCalledWith("rpc_mock_analysis_context", { _attempt: "att" });
+  });
+});
+
+describe("a marked paper, read as a session is (B5)", () => {
+  const question = (over: Partial<MockReviewQuestion>): MockReviewQuestion => ({
+    order: 1, id: "q1", available: true, question: "What is 2 + 2?", options: ["3", "4", "5", "6"], format: "mcq",
+    chapter: "Ratio Analysis", topic: "Liquidity ratios", difficulty: "medium", explanation: "Add them.",
+    correct: { index: 1, text: "4" }, choice: 1, is_correct: true, guessed: false, marks: 5, time_ms: 40_000, ...over,
+  });
+  const result = (questions: MockReviewQuestion[]): MockResultShape => ({
+    id: "att", paper_id: "p", subject: "Accountancy", chapter_id: null, chapter: null,
+    started_at: "2026-10-09T10:00:00Z", submitted_at: "2026-10-09T10:50:00Z", auto_submitted: false, seconds_taken: 3000,
+    total: questions.length, seen_before: 0, correct: 0, wrong: 0, unanswered: 0, voided: 0, score: 0, max_score: 0,
+    marks_correct: 5, marks_wrong: -1, questions,
+  });
+
+  it("carries the answer, the key, the time, the chapter and the topic of each question", () => {
+    const [row] = mockResultToAttemptRows(result([question({})]));
+    expect(row).toMatchObject({
+      bank_question_id: "q1",
+      subject: "Accountancy",
+      chapter: "Ratio Analysis",
+      difficulty: "medium",
+      correct_answer: { index: 1, text: "4" },
+      selected_answer: { index: 1, text: "4" },
+      is_correct: true,
+      skipped: false,
+      excluded_from_accuracy: false,
+      time_taken_ms: 40_000,
+      created_at: "2026-10-09T10:50:00Z",
+    });
+    expect(row.generated_question).toMatchObject({
+      question: "What is 2 + 2?", options: ["3", "4", "5", "6"], topic: "Liquidity ratios", bank_question_id: "q1",
+    });
+  });
+
+  it("reads the guess tap as practice records it", () => {
+    const rows = mockResultToAttemptRows(result([
+      question({ id: "a", guessed: true }),
+      question({ id: "b", guessed: false }),
+      question({ id: "c", guessed: null }),
+    ]));
+    expect(rows.map((r) => r.confidence)).toEqual([MARKED_AS_GUESS, ANSWERED_UNMARKED, null]);
+    // CONTROL: the two values differ, so a swap would fail above.
+    expect(MARKED_AS_GUESS).not.toBe(ANSWERED_UNMARKED);
+  });
+
+  it("reads a blank as a skip, and a withdrawn answer as left out of accuracy rather than wrong", () => {
+    const [blank, withdrawn] = mockResultToAttemptRows(result([
+      question({ id: "a", choice: null, is_correct: null, guessed: null }),
+      question({ id: "b", choice: 2, is_correct: null, available: false, question: null, correct: null }),
+    ]));
+    expect(blank).toMatchObject({ skipped: true, selected_answer: null, excluded_from_accuracy: false });
+    expect(withdrawn).toMatchObject({ skipped: false, excluded_from_accuracy: true, correct_answer: {} });
   });
 });

@@ -85,6 +85,9 @@ function groupBy(attempts: ReadonlyArray<SessionAttempt>, keyOf: (a: SessionAtte
   return [...groups].map(([k, list]) => rowOf(k, list));
 }
 
+/** The row for answers filed under no topic or chapter. Nothing to practise by that name. */
+export const UNFILED = "Other";
+
 /** Weakest first: most wrong, then lowest share right, then most asked. */
 const weakestFirst = (x: BreakdownRow, y: BreakdownRow) =>
   y.wrong - x.wrong
@@ -101,7 +104,7 @@ const weakestFirst = (x: BreakdownRow, y: BreakdownRow) =>
  * decides its spelling, so last time's rows take this session's name.
  */
 function topicNames(...lists: ReadonlyArray<ReadonlyArray<SessionAttempt>>): (a: SessionAttempt) => string {
-  const written = (a: SessionAttempt) => a.topic?.trim() || a.chapter?.trim() || "Other";
+  const written = (a: SessionAttempt) => a.topic?.trim() || a.chapter?.trim() || UNFILED;
   const identity = (name: string) => name.toLowerCase();
   const chosen = new Map<string, string>();
   for (const list of lists) {
@@ -122,6 +125,15 @@ function topicNames(...lists: ReadonlyArray<ReadonlyArray<SessionAttempt>>): (a:
 
 export function topicBreakdown(attempts: ReadonlyArray<SessionAttempt>): BreakdownRow[] {
   return groupBy(attempts, topicNames(attempts)).sort(weakestFirst);
+}
+
+/**
+ * By chapter, weakest first — only worth showing when the session spanned
+ * chapters: a whole-subject mock paper, a weak-areas session.
+ */
+export function chapterBreakdown(attempts: ReadonlyArray<SessionAttempt>): BreakdownRow[] | null {
+  const rows = groupBy(attempts, (a) => a.chapter?.trim() || UNFILED).sort(weakestFirst);
+  return rows.length > 1 ? rows : null;
 }
 
 const DIFFICULTY_ORDER = ["easy", "medium", "hard"];

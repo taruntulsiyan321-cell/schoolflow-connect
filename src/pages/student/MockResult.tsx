@@ -1,40 +1,55 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { CheckCircle2, Timer, XCircle, MinusCircle, Ban } from "lucide-react";
+import { ArrowLeft, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { QuestionRenderer, type TestQuestionShape } from "@/components/student/QuestionRenderer";
+import { PageHeader } from "@/gurukul/components/shared";
 import { StudentErrorState, StudentSessionSkeleton } from "@/components/student/StudentPanelStates";
-import { ExplanationText } from "@/components/ExplanationText";
-import { displaySubject } from "@/lib/academicDisplay";
-import { formatSessionDuration } from "@/lib/practiceSessionStats";
+import { useAuth } from "@/hooks/useAuth";
+import { displayChapter, displaySubject } from "@/lib/academicPresentation";
+import { deriveSessionAccuracy, formatSessionAccuracy, formatSessionDuration } from "@/lib/practiceSessionStats";
+import { paceOverAnswers } from "@/lib/studentAnalysisMetrics";
 import { toErrorMessage } from "@/lib/presentation";
-import { MockError, fetchMockResult, type MockResult as MockResultShape } from "@/lib/mockTest";
+import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
+import { markRefFromAttempt } from "@/lib/questionMarks";
+import { useQuestionMarks } from "@/components/student/questionMarks/useQuestionMarks";
+import { useQuestionReports } from "@/components/student/questionReports/useQuestionReports";
+import { readSessionAnalysisContext, type SessionAnalysisContext } from "@/lib/sessionAnalysisContext";
+import { analyseSession } from "@/components/student/sessionResult/analyseSession";
+import { QuestionsTab } from "@/components/student/sessionResult/QuestionsTab";
+import { SessionQuestionCard } from "@/components/student/sessionResult/SessionQuestionCard";
+import { SessionTabBar } from "@/components/student/sessionResult/SessionTabs";
+import { useSessionTabs } from "@/components/student/sessionResult/useSessionTabs";
+import { SummaryTab } from "@/components/student/sessionResult/SummaryTab";
+import { TimeTab } from "@/components/student/sessionResult/TimeTab";
+import { TopicsTab } from "@/components/student/sessionResult/TopicsTab";
+import {
+  MockError, fetchMockAnalysisContext, fetchMockResult, mockResultToAttemptRows,
+  type MockResult as MockResultShape,
+} from "@/lib/mockTest";
 
 /**
- * A marked mock paper: the score, and every question with the right answer.
+ * A marked mock paper, read the way a practice session is (B5): the score, then
+ * the same four tabs — the paper at a glance with its guesses and marks, where
+ * the marks went by chapter, topic, difficulty and kind of question, how time
+ * went, and every question with its answer.
  *
  * The right answers arrive here and nowhere earlier — rpc_mock_result refuses
  * until the paper is submitted, and the paper the student sits carries no
- * answer at all. Marks per question come from the server too, so this screen
- * cannot disagree with the total it is showing.
+ * answer at all. The score is the server's marking; the analysis reads the
+ * same answers, and its comparison and "met before" come from
+ * rpc_mock_analysis_context, which has the shape a practice session's has.
  */
-const FILTERS = ["all", "wrong", "unanswered", "right"] as const;
-type Filter = (typeof FILTERS)[number];
-
-const FILTER_LABEL: Record<Filter, string> = {
-  all: "All",
-  wrong: "Wrong",
-  unanswered: "Left blank",
-  right: "Right",
-};
-
 export default function MockResult() {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
+  const { user } = useAuth();
   const [result, setResult] = useState<MockResultShape | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<Filter>("all");
+  const [context, setContext] = useState<SessionAnalysisContext | null>(null);
+  const { tab, setTab, filter, setFilter, showQuestions, showQuestion } = useSessionTabs();
+  // Every question here can be marked — wrong, left, or right by a guess.
+  const { tags: markTags, marks, setMark } = useQuestionMarks(user?.id);
 
   useEffect(() => {
     if (!id) return;
@@ -58,15 +73,23 @@ export default function MockResult() {
     };
   }, [id, nav]);
 
-  const shown = useMemo(() => {
-    if (!result) return [];
-    return result.questions.filter((q) => {
-      if (filter === "all") return true;
-      if (filter === "wrong") return q.is_correct === false;
-      if (filter === "right") return q.is_correct === true;
-      return q.choice == null;   // left blank
-    });
-  }, [result, filter]);
+  // Only once the paper is marked: before that the context is refused too.
+  // Without it the paper is read alone — no comparison, no "met before".
+  useEffect(() => {
+    if (!result) return;
+    let alive = true;
+    fetchMockAnalysisContext(result.id)
+      .then((raw) => { if (alive) setContext(readSessionAnalysisContext(raw)); })
+      .catch(() => { if (alive) setContext(null); });
+    return () => {
+      alive = false;
+    };
+  }, [result]);
+
+  const rows = useMemo(() => (result ? mockResultToAttemptRows(result) : []), [result]);
+  const analysis = useMemo(() => analyseSession(rows, context), [rows, context]);
+  const bankIds = useMemo(() => (result ? result.questions.map((q) => q.id) : []), [result]);
+  const { reports, setReport } = useQuestionReports(user?.id, bankIds);
 
   if (error) {
     return (
@@ -83,55 +106,79 @@ export default function MockResult() {
 
   if (!result) return <StudentSessionSkeleton label="Loading your result…" />;
 
-  const accuracy = result.correct + result.wrong > 0
-    ? Math.round((result.correct / (result.correct + result.wrong)) * 100)
-    : null;
+  const subjectRaw = result.subject;
+  const chapterRaw = result.chapter ?? "";
+  const subject = displaySubject(subjectRaw) || subjectRaw;
+  const chapter = chapterRaw ? displayChapter(chapterRaw) || chapterRaw : "";
+  const { avgSec } = paceOverAnswers(rows.map((r) => ({ timeMs: r.time_taken_ms, skipped: Boolean(r.skipped) })));
+
+  const cards = result.questions.map((q, i) => {
+    const row = rows[i];
+    if (!q.available) {
+      return {
+        order: i,
+        card: (
+          <Card id={`question-${i + 1}`} className="scroll-mt-24 p-5" data-testid="session-question">
+            <div className="mb-2 text-xs text-muted-foreground">Q{i + 1}</div>
+            <p className="text-sm text-muted-foreground">
+              This question was withdrawn from the bank after your paper was made, so it cannot be reviewed. It carried no marks either way.
+            </p>
+          </Card>
+        ),
+      };
+    }
+    const markRef = markRefFromAttempt(row);
+    return {
+      order: i,
+      card: (
+        <SessionQuestionCard
+          attempt={row}
+          order={i}
+          notes={analysis.notes.get(i) ?? []}
+          subjectRaw={subjectRaw}
+          chapterRaw={q.chapter ?? chapterRaw}
+          // A report names a practice session (question_reports.session_id);
+          // a mock paper is not one, so its reports name none.
+          sessionId={null}
+          userId={user?.id ?? null}
+          mark={markRef ? marks.get(markRef.id) ?? null : null}
+          markTags={markTags}
+          onMark={setMark}
+          report={reports.get(q.id) ?? null}
+          onReport={setReport}
+          onAskNova={(c) => {
+            setNovaQuestionContext({
+              question: c.question,
+              options: c.options,
+              correctIndex: c.correctIndex,
+              subject: subjectRaw,
+              chapter: q.chapter ?? chapterRaw,
+              studentAnswer: c.selectedText,
+              studentAnswerIndex: c.selectedIndex,
+            });
+            nav("/student/aicoach");
+          }}
+        />
+      ),
+    };
+  });
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-4">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground">
-          {displaySubject(result.subject) || result.subject} mock test
-        </div>
-        <h1 className="text-3xl font-black leading-tight text-foreground" style={{ fontFamily: "var(--font-display)" }}>
-          {result.score} <span className="text-lg font-bold text-muted-foreground">of {result.max_score}</span>
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {result.auto_submitted ? "Submitted when the hour ran out." : "Submitted by you."}{" "}
-          {formatSessionDuration(result.seconds_taken * 1000)} on the paper.
-        </p>
-      </div>
+      <Button variant="ghost" size="sm" asChild className="mb-2">
+        <Link to="/student/mocks"><ArrowLeft className="h-4 w-4" /> Mock Tests</Link>
+      </Button>
+      <PageHeader
+        eyebrow={chapter ? "Chapter mock test" : "Mock test"}
+        title={[subject, chapter].filter(Boolean).join(" · ")}
+        subtitle={`${new Date(result.submitted_at).toLocaleString()} · ${
+          result.auto_submitted ? "submitted when the hour ran out" : "submitted by you"
+        }`}
+      />
 
-      <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="mock-result-counts">
-        <Card className="p-3">
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <CheckCircle2 className="h-3.5 w-3.5 text-accent" /> Right
-          </div>
-          <div className="text-xl font-black text-foreground">{result.correct}</div>
-          <div className="text-[10px] text-muted-foreground">+{result.marks_correct} each</div>
-        </Card>
-        <Card className="p-3">
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <XCircle className="h-3.5 w-3.5 text-destructive" /> Wrong
-          </div>
-          <div className="text-xl font-black text-foreground">{result.wrong}</div>
-          <div className="text-[10px] text-muted-foreground">{result.marks_wrong} each</div>
-        </Card>
-        <Card className="p-3">
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <MinusCircle className="h-3.5 w-3.5" /> Left blank
-          </div>
-          <div className="text-xl font-black text-foreground">{result.unanswered}</div>
-          <div className="text-[10px] text-muted-foreground">0 each</div>
-        </Card>
-        <Card className="p-3">
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Timer className="h-3.5 w-3.5" /> Accuracy
-          </div>
-          <div className="text-xl font-black text-foreground">{accuracy == null ? "—" : `${accuracy}%`}</div>
-          <div className="text-[10px] text-muted-foreground">of what you answered</div>
-        </Card>
-      </div>
+      <p className="mb-4 text-3xl font-black leading-tight text-foreground" data-testid="mock-score" style={{ fontFamily: "var(--font-display)" }}>
+        {result.score} <span className="text-lg font-bold text-muted-foreground">of {result.max_score} marks</span>
+      </p>
 
       {result.voided > 0 && (
         <p className="mb-4 flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-4 py-3 text-xs text-muted-foreground" data-testid="mock-voided-note">
@@ -142,89 +189,46 @@ export default function MockResult() {
         </p>
       )}
 
-      <div className="mb-3 flex flex-wrap gap-2">
-        {FILTERS.map((f) => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => setFilter(f)}
-            className={`rounded-lg border px-3 py-1 text-xs font-semibold ${
-              filter === f ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground"
-            }`}
-          >
-            {FILTER_LABEL[f]}
-          </button>
-        ))}
-      </div>
+      <SessionTabBar tab={tab} onTab={setTab} label="Paper analysis" />
 
-      <div className="space-y-3" data-testid="mock-review">
-        {shown.length === 0 && (
-          <p className="py-6 text-center text-sm text-muted-foreground">Nothing in this group.</p>
-        )}
-        {shown.map((q) => {
-          const renderer: TestQuestionShape = {
-            id: q.id,
-            order_index: q.order,
-            question_format: "mcq",
-            question: q.question ?? "",
-            options: q.options,
-            correct: q.correct ? { indexes: [q.correct.index] } : null,
-            marks: result.marks_correct,
-          };
-          return (
-            <Card key={q.id} className="p-4">
-              <div className="mb-2 flex items-start justify-between gap-3 text-xs text-muted-foreground">
-                <span>
-                  Question {q.order}
-                  {q.chapter ? ` · ${q.chapter}` : ""}
-                  {/* A topic named as its chapter is said once, not twice. */}
-                  {q.topic && q.topic.trim().toLowerCase() !== (q.chapter ?? "").trim().toLowerCase() ? ` · ${q.topic}` : ""}
-                </span>
-                <span
-                  className={
-                    q.is_correct === true
-                      ? "font-semibold text-accent"
-                      : q.is_correct === false
-                        ? "font-semibold text-destructive"
-                        : ""
-                  }
-                >
-                  {q.marks > 0 ? `+${q.marks}` : q.marks} {q.marks === 1 || q.marks === -1 ? "mark" : "marks"}
-                </span>
-              </div>
-
-              {q.available ? (
-                <>
-                  <QuestionRenderer
-                    question={renderer}
-                    mode="review"
-                    value={q.choice == null ? {} : { indexes: [q.choice] }}
-                    isCorrect={q.is_correct}
-                  />
-                  {q.choice == null && (
-                    <p className="mt-2 text-xs text-muted-foreground">You left this one blank.</p>
-                  )}
-                  {q.explanation && (
-                    <div className="mt-3 rounded-lg bg-muted/40 p-3 text-sm text-foreground">
-                      <ExplanationText text={q.explanation} />
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  This question was withdrawn from the bank, so it cannot be reviewed.
-                </p>
-              )}
-            </Card>
-          );
-        })}
-      </div>
-
-      <div className="mt-6 text-center">
-        <Button variant="outline" asChild>
-          <Link to="/student/mocks">Back to Mock Tests</Link>
-        </Button>
-      </div>
+      {tab === "summary" && (
+        <SummaryTab
+          analysis={analysis}
+          stats={{
+            total: result.total,
+            correct: result.correct,
+            wrong: result.wrong,
+            skipped: result.unanswered,
+            accuracyLabel: formatSessionAccuracy(deriveSessionAccuracy(result.correct, result.wrong)),
+            durationLabel: formatSessionDuration(result.seconds_taken * 1000),
+            avgSec,
+          }}
+          subjectRaw={subjectRaw}
+          chapterRaw={chapterRaw}
+          // A paper is compared with the last one of the same kind: the same
+          // subject's whole paper, or the same chapter's.
+          compare={{
+            title: `your last ${chapter || subject} paper`,
+            first: `This is your first ${chapter || subject} paper. Your next one will be compared with it.`,
+          }}
+          recommendations={[]}
+          insights={null}
+          onShowQuestions={showQuestions}
+        />
+      )}
+      {tab === "topics" && (
+        <TopicsTab analysis={analysis} subjectRaw={subjectRaw} chapterRaw={chapterRaw} conceptReport={null} />
+      )}
+      {tab === "time" && <TimeTab analysis={analysis} onShowQuestion={showQuestion} />}
+      {tab === "questions" && (
+        <QuestionsTab
+          filters={analysis.filters}
+          active={filter}
+          onFilter={setFilter}
+          cards={cards}
+          empty="This paper has no questions to review."
+        />
+      )}
     </div>
   );
 }

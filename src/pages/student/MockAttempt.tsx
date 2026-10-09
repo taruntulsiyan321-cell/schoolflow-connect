@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Check, Flag, Send, Timer } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Flag, HelpCircle, Send, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { QuestionRenderer, type TestQuestionShape } from "@/components/student/QuestionRenderer";
@@ -37,6 +37,10 @@ import {
  * the tab does not pause anything and the device's clock cannot buy time —
  * every save past the deadline is refused, and submitting past it is recorded
  * as the hour ending the paper rather than the student.
+ *
+ * The "I'm guessing" tap is on every question, as it is in practice, so the
+ * result reads with practice's four tabs and can tell a lucky guess from
+ * knowing (B5).
  */
 export default function MockAttempt() {
   const { id } = useParams<{ id: string }>();
@@ -90,7 +94,9 @@ export default function MockAttempt() {
           ...p,
           questions: p.questions.map((q) => {
             const mine = prev.questions.find((x) => x.id === q.id);
-            return mine && editedRef.current.has(q.id) ? { ...q, choice: mine.choice, marked: mine.marked } : q;
+            return mine && editedRef.current.has(q.id)
+              ? { ...q, choice: mine.choice, marked: mine.marked, guessed: mine.guessed }
+              : q;
           }),
         };
       });
@@ -157,15 +163,18 @@ export default function MockAttempt() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [left, paper]);
 
-  const persist = (q: MockQuestion, next: { choice?: number | null; marked?: boolean }) => {
+  const persist = (q: MockQuestion, next: { choice?: number | null; marked?: boolean; guessed?: boolean | null }) => {
     if (!paper) return;
     const choice = next.choice === undefined ? q.choice : next.choice;
     const marked = next.marked === undefined ? q.marked : next.marked;
+    const guessed = next.guessed === undefined ? q.guessed : next.guessed;
     // Marked BEFORE the save is queued, so a load in flight cannot resolve
     // into the gap and overwrite it.
     editedRef.current.add(q.id);
     setPaper((prev) =>
-      prev ? { ...prev, questions: prev.questions.map((x) => (x.id === q.id ? { ...x, choice, marked } : x)) } : prev,
+      prev
+        ? { ...prev, questions: prev.questions.map((x) => (x.id === q.id ? { ...x, choice, marked, guessed } : x)) }
+        : prev,
     );
     setSaveState((prev) => ({ ...prev, [q.id]: "saving" }));
 
@@ -181,6 +190,9 @@ export default function MockAttempt() {
           choice,
           marked,
           timeMs: timeFor(q.id),
+          // The tap is on every question, so an answer given without it is
+          // "not a guess" (false), never "not said". A blank is neither.
+          guessed: choice == null ? null : guessed === true,
         });
         if (saveSeqRef.current[q.id] === seq) setSaveState((prev) => ({ ...prev, [q.id]: "saved" }));
       } catch (e) {
@@ -194,6 +206,23 @@ export default function MockAttempt() {
         toast.error(e instanceof MockError ? e.message : toErrorMessage(e, "Could not save your answer"));
       }
     });
+  };
+
+  /**
+   * The "I'm guessing" tap (owner, 2026-10-03), as practice has it. On an
+   * answer it is saved with the answer; on a blank it is held here and goes with
+   * the answer when one is given, because a blank is no guess.
+   */
+  const toggleGuess = (q: MockQuestion) => {
+    const guessed = q.guessed !== true;
+    if (q.choice != null) {
+      persist(q, { guessed });
+      return;
+    }
+    editedRef.current.add(q.id);
+    setPaper((prev) =>
+      prev ? { ...prev, questions: prev.questions.map((x) => (x.id === q.id ? { ...x, guessed } : x)) } : prev,
+    );
   };
 
   const confirmThenSubmit = () => {
@@ -342,20 +371,38 @@ export default function MockAttempt() {
           </p>
         )}
 
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => persist(q, { marked: !q.marked })}
-            className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-semibold ${
-              q.marked ? "border-warning/40 bg-warning/15 text-warning" : "border-border text-muted-foreground"
-            }`}
-          >
-            <Flag className="h-3.5 w-3.5" /> {q.marked ? "Marked for review" : "Mark for review"}
-          </button>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => persist(q, { marked: !q.marked })}
+              className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-semibold ${
+                q.marked ? "border-warning/40 bg-warning/15 text-warning" : "border-border text-muted-foreground"
+              }`}
+            >
+              <Flag className="h-3.5 w-3.5" /> {q.marked ? "Marked for review" : "Mark for review"}
+            </button>
+            {/* One name for the toggle; aria-pressed and the tint say whether it is on. */}
+            {q.available && (
+              <button
+                type="button"
+                onClick={() => toggleGuess(q)}
+                aria-pressed={q.guessed === true}
+                className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-semibold ${
+                  q.guessed === true ? "border-warning/50 bg-warning/15 text-foreground" : "border-border text-muted-foreground"
+                }`}
+              >
+                {q.guessed === true
+                  ? <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                  : <HelpCircle className="h-3.5 w-3.5" aria-hidden />}
+                I'm guessing
+              </button>
+            )}
+          </div>
           {q.choice != null && (
             <button
               type="button"
-              onClick={() => persist(q, { choice: null })}
+              onClick={() => persist(q, { choice: null, guessed: null })}
               className="text-xs font-semibold text-muted-foreground underline"
             >
               Clear answer

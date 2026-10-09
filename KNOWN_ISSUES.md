@@ -5293,3 +5293,56 @@ and strips the second (a whole Economics run had been thrown away over the topic
    "2026-10-09.2" with the 287 stored before the gate, which have no review.
 4. **`scripts/measure-upload-promotion-12-5-real.mjs` cannot run** since 20261096000000 (an upload question must have
    a chapter, so its no-chapter fixture is refused) — found here, rebuilt in A6.
+
+## 119. The mock creator — BUILT and LIVE 2026-10-09 (20261150000000); what is open
+
+**docs/TODO.md B1–B5.** A student asks for a whole-subject paper or a chapter paper and gets one built like the
+real CUET paper:
+
+* **The blueprint is data** — `exam_blueprint_options`, `exam_blueprint_chapters`, `exam_blueprint_forms`, loaded
+  from the approved `docs/cuet-blueprint.md`. Each subject's chapter shares and form shares sum to 50 (proved in the
+  migration). Accountancy's Unit V and Mathematics' Section B are a once-only choice per student
+  (`exam_option_choices`, `rpc_set_exam_option`); a subject paper is refused until it is made.
+* **What a paper may hold** (`_mock_pool`): no assertion–reason (A1 decision 2), no AI question without a passing
+  review (A2), no question with a disputed key.
+* **A library** (`mock_papers`): a paper may be given to any number of students and never twice to one (unique
+  index on `(paper_id, user_id)`). Order (B4): questions never met; then met and gone badly (wrong, left, timed
+  out, guessed), longest ago first; then met and right, longest ago first.
+* **Prepared before it starts** (`rpc_mock_prepare`, counts nothing): the confirm says how many questions were met
+  before and which come first, which chapter came up short of its share, and how far the paper's statement, match,
+  sequence and passage questions fall short of the blueprint. `rpc_mock_start(_paper)` starts it and is where the
+  plan counts.
+* **The guess tap** on every question (`mock_answers.guessed`). A blank answer is never a guess — enforced in the
+  save, proved by a mutant.
+* **After the paper:** practice's four tabs (`mockResultToAttemptRows`, `rpc_mock_analysis_context`, the same
+  shape as a practice session's), with the comparison against the last paper of the same kind. The tab bar and its
+  state are shared (`SessionTabBar`, `useSessionTabs`) rather than copied. The Topics tab gained **By chapter**
+  for any session that spans chapters, a weak-areas practice session included.
+
+**Measured:** the migration's proofs pass on the live data in a rolled-back dry run, and 7 mutants are refused
+(troubled-first order, history, assertion–reason, unreviewed AI, bent shares, unchosen option ready, blank guess).
+The screens' tests kill 15 mutants. As a real exam-account student, in a probe that ends by raising so nothing
+stays:
+
+* Accountancy is refused until Unit V is chosen (`mock_option_not_chosen`). After the choice it gives a 50-question
+  paper with nothing repeated and no short chapter. 7 of its 11 chapters can fill a chapter paper.
+* Reconstitution of Partnership's chapter paper holds 9 questions the student had met, all 9 ones they got wrong,
+  left or guessed.
+* Business Studies gives a 50-question subject paper.
+* Afterwards: 0 papers and 0 choices kept.
+
+**Open:**
+1. **The forms fall short of the blueprint.** An Accountancy paper holds 3 statement, match, sequence or passage
+   questions where the real paper sets 26; Business Studies holds 10 of 24. The bank does not hold them — A's work,
+   paused by the owner on 2026-10-09. The paper says so before it starts rather than hiding it.
+2. **Four subjects cannot fill a paper:** Economics (31 in the pool), English (20), General Aptitude (6),
+   Mathematics (21). This is B6, question-bank work, paused. Their cards show the count.
+3. **Business Studies has no chapter with 50 questions**, so there is no Business Studies chapter paper yet.
+4. **A report won on a mock question does not re-mark the paper.** The settle path excludes `question_attempts`
+   only. A report filed from a mock card names no session, because `question_reports.session_id` references
+   `practice_sessions`. A disputed key leaves the pool, so a new paper never carries it.
+5. **A mock result has no concept report:** `ConceptRecoveryReport`'s sources do not include a mock attempt.
+6. **No browser check.** The screens need a signed-in exam account, and this session does not sign in to
+   production. They are covered by component tests (with mutants) and the live probes above.
+7. **B7, plan counting,** is still to be discussed with the owner. Today the free plan allows 1 mock in total,
+   counted at start.

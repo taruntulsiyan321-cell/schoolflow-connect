@@ -100,20 +100,27 @@ Owner, 2026-10-03/04. A student asks for a mock — a whole subject, or one
 chapter — and gets a paper that feels like the real CUET: every type of
 question the real paper uses (A1's blueprint), not 50 plain MCQs.
 
-**B1. Full subject mock:** 50 questions, 60 minutes, +5/−1 (`_mock_paper()`),
+**B1–B5 BUILT and LIVE 2026-10-09 (20261150000000) — KNOWN_ISSUES 119.** What is
+left of B: B3's background writing and B6 (question-bank work, paused by the
+owner 2026-10-09: "except question bank, finish everything else"), and B7.
+
+**~~B1. Full subject mock~~ — DONE 2026-10-09:** 50 questions, 60 minutes, +5/−1 (`_mock_paper()`),
 spread across the subject's chapters and types by its blueprint.
 
-**B2. Chapter mock: also 50 questions** (owner ruling 2026-10-04). Time:
+**~~B2. Chapter mock: also 50 questions~~ — DONE 2026-10-09** (owner ruling 2026-10-04). Time:
 60 minutes — the paper's 72 seconds a question (my decision; say if not).
 
-**B3. A library of saved papers, built in the background.** Writing 50 checked
+**B3. A library of saved papers, built in the background.** The library is DONE
+(2026-10-09: `mock_papers`, never twice to one student by a unique index); papers
+are built from the bank on request. The background writing is NOT built —
+question-bank work, paused. Writing 50 checked
 questions takes minutes, so papers are prepared ahead per subject and chapter
 and a student starts one at once. **A paper may be given to any number of
 students; the same paper is never given to one student twice** (owner ruling).
 New questions are written only for what the bank cannot supply, through A2's
 gate, and saved to the bank like AI Practice's.
 
-**B4. When a chapter runs out — DECIDED (the owner asked me to decide).** A
+**~~B4. When a chapter runs out~~ — DONE 2026-10-09 (1–3 and 5; 4 is B6's writing, paused). DECIDED (the owner asked me to decide).** A
 chapter can only hold so many genuinely different good questions (the owner's
 figure: about 300). A student who takes a 7th chapter mock may have met most
 of them. The rule, in order:
@@ -131,7 +138,7 @@ of them. The rule, in order:
    and the owner is told, rather than paying for questions that are the same.
 5. The paper as a whole is still never one the student has taken.
 
-**B5. After the paper:** the same four-tab analysis practice sessions have
+**~~B5. After the paper~~ — DONE 2026-10-09:** the same four-tab analysis practice sessions have
 (Summary, Topics, Time, Questions — with type, guesses and marks), not today's
 counts and review alone.
 

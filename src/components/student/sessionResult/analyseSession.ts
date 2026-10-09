@@ -6,6 +6,7 @@
  */
 import {
   type BreakdownRow,
+  chapterBreakdown,
   type Comparison,
   compareWithLast,
   difficultyBreakdown,
@@ -52,6 +53,8 @@ export type QuestionFilter = { key: "all" | "wrong" | "skipped" | NoteKey; label
 export type SessionAnalysis = {
   attempts: SessionAttempt[];
   topics: BreakdownRow[];
+  /** Only when the session spanned chapters. */
+  chapters: BreakdownRow[] | null;
   difficulty: BreakdownRow[];
   forms: BreakdownRow[] | null;
   pace: PaceReading | null;
@@ -114,6 +117,7 @@ export function analyseSession(rows: ReadonlyArray<AttemptRow>, context: Session
   return {
     attempts,
     topics: topicBreakdown(attempts),
+    chapters: chapterBreakdown(attempts),
     difficulty: difficultyBreakdown(attempts),
     forms: formBreakdown(attempts),
     pace,

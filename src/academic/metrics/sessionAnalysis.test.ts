@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  chapterBreakdown,
   compareWithLast,
   difficultyBreakdown,
   examMarks,
@@ -90,6 +91,25 @@ describe("the breakdowns", () => {
     expect(formBreakdown(session())?.map((r) => [r.key, r.wrong])).toEqual([["match", 2], ["mcq", 2]]);
     n = 0;
     expect(formBreakdown([at({}), at({})])).toBeNull();
+  });
+
+  it("chapters, weakest first, only when the session spanned more than one", () => {
+    // One chapter is the session itself: no table.
+    expect(chapterBreakdown(session())).toBeNull();
+    n = 0;
+    const rows = chapterBreakdown([
+      at({ chapter: "Admission" }),
+      at({ chapter: "Admission", isCorrect: false }),
+      at({ chapter: " Ratio Analysis ", isCorrect: false }),
+      at({ chapter: "Ratio Analysis", isCorrect: false }),
+      at({ chapter: "Ratio Analysis", skipped: true, isCorrect: null }),
+      at({ chapter: null }),
+    ]);
+    expect(rows?.map((r) => [r.key, r.asked, r.wrong, r.skipped])).toEqual([
+      ["Ratio Analysis", 3, 2, 1],
+      ["Admission", 2, 1, 0],
+      ["Other", 1, 0, 0],
+    ]);
   });
 });
 

@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
-import { displayTopic } from "@/lib/academicPresentation";
+import { displayChapter, displayTopic } from "@/lib/academicPresentation";
 import { formatSeconds } from "@/lib/studentAnalysisMetrics";
-import type { BreakdownRow } from "@/academic/metrics/sessionAnalysis";
+import { type BreakdownRow, UNFILED } from "@/academic/metrics/sessionAnalysis";
 import { MIN_OBSERVATIONS_FOR_VERDICT } from "@/academic/metrics/thresholds";
 import { FORM_LABELS, isQuestionForm } from "../../../../supabase/functions/_shared/questionForms.ts";
 import type { SessionAnalysis } from "./analyseSession";
@@ -70,20 +70,27 @@ function BreakdownTable({ rows, heading, label, practise }: TableProps) {
   );
 }
 
-/** Where the marks went: by topic (weakest first), by difficulty, by kind of question — and the concept report. */
+/** Where the marks went: by chapter when there were several, by topic (weakest first), by difficulty, by kind of question — and the concept report. */
 export function TopicsTab({ analysis, subjectRaw, chapterRaw, conceptReport }: Props) {
-  const practise = (r: BreakdownRow) =>
-    `/student/practice?${new URLSearchParams({
-      ...(subjectRaw ? { subject: subjectRaw } : {}),
-      ...(chapterRaw ? { chapter: chapterRaw } : {}),
-      topic: r.key,
-    })}`;
+  // Answers filed under nothing have nothing to practise by that name.
+  const practiceHref = (key: string, where: Record<string, string>) =>
+    key === UNFILED ? null : `/student/practice?${new URLSearchParams({ ...(subjectRaw ? { subject: subjectRaw } : {}), ...where })}`;
+  const practiseTopic = (r: BreakdownRow) => practiceHref(r.key, { ...(chapterRaw ? { chapter: chapterRaw } : {}), topic: r.key });
+  const practiseChapter = (r: BreakdownRow) => practiceHref(r.key, { chapter: r.key });
   return (
     <div className="space-y-5">
+      {analysis.chapters && (
+        <Card className="p-5" data-testid="topics-by-chapter">
+          <h3 className="mb-1 text-sm font-semibold">By chapter</h3>
+          <p className="mb-3 text-xs text-muted-foreground">The chapter that cost you most comes first.</p>
+          <BreakdownTable rows={analysis.chapters} heading="Chapter" label={(k) => displayChapter(k) || k} practise={practiseChapter} />
+        </Card>
+      )}
+
       <Card className="p-5" data-testid="topics-by-topic">
         <h3 className="mb-1 text-sm font-semibold">By topic</h3>
         <p className="mb-3 text-xs text-muted-foreground">The topic that cost you most comes first.</p>
-        <BreakdownTable rows={analysis.topics} heading="Topic" label={(k) => displayTopic(k) || k} practise={practise} />
+        <BreakdownTable rows={analysis.topics} heading="Topic" label={(k) => displayTopic(k) || k} practise={practiseTopic} />
       </Card>
 
       {analysis.difficulty.length > 1 && (
