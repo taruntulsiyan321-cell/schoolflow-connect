@@ -89,6 +89,23 @@ type DifficultyAnalyticsRow = {
 };
 
 /**
+ * By the form of the question answered (20261151000000, C1): direct,
+ * assertion–reason, statement-based, match, case-based, sequence. Weakest first.
+ */
+type FormAnalyticsRow = {
+  form: string;
+  attempts: number;
+  /** Attempts that were not skipped. The accuracy denominator. */
+  answered: number;
+  /** Answers (not skips) with a recorded duration. The avg_sec denominator. */
+  timed: number;
+  correct: number;
+  skipped: number;
+  accuracy: number | null;
+  avg_sec: number | null;
+};
+
+/**
  * Counted per BANK QUESTION since 20261115000000. They were counted off
  * attempt_number, which the practice screen writes as the question's position
  * in its session, so "met more than once" was "not first in its session".
@@ -131,6 +148,8 @@ type StudentPracticeAnalytics = {
   by_chapter: ChapterAnalyticsRow[];
   /** easy, medium, hard, in that order: the SHAPE is the reading. */
   by_difficulty: DifficultyAnalyticsRow[];
+  /** Weakest first. Empty from a function older than 20261151000000. */
+  by_form: FormAnalyticsRow[];
   effort: EffortAnalytics | null;
   recurring: RecurringMistakeRow[];
   /**
@@ -207,7 +226,7 @@ function rowsOf(v: unknown): Record<string, unknown>[] {
 
 function parseAnalytics(payload: unknown): { data: StudentPracticeAnalytics; ok: boolean } {
   const p = (payload ?? {}) as Record<string, unknown>;
-  const groups = [p.by_subject, p.by_topic, p.by_chapter, p.by_difficulty];
+  const groups = [p.by_subject, p.by_topic, p.by_chapter, p.by_difficulty, p.by_form];
   const ok = groups.every((g) => rowsOf(g).every(hasDenominators));
 
   const base = (r: Record<string, unknown>) => ({
@@ -243,6 +262,10 @@ function parseAnalytics(payload: unknown): { data: StudentPracticeAnalytics; ok:
       })),
       by_difficulty: rowsOf(p.by_difficulty).map((r) => ({
         difficulty: str(r.difficulty),
+        ...base(r),
+      })),
+      by_form: rowsOf(p.by_form).map((r) => ({
+        form: str(r.form),
         ...base(r),
       })),
       // Null unless it carries the per-question counts: a payload from before

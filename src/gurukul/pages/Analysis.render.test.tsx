@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 // The page links into Practice, as the app renders it: inside the router.
 import { MemoryRouter } from "react-router-dom";
@@ -173,6 +173,8 @@ vi.mock("@/hooks/useSyllabusMap", () => ({
 vi.mock("@/hooks/useExamPaper", () => ({
   useExamPaper: () => ({ data: { questions: 50, minutes: 60, marks_correct: 5, marks_wrong: -1 }, error: null }),
 }));
+// by_form per test: the fixture student met direct questions only.
+const forms = vi.hoisted(() => ({ rows: [] as unknown[] }));
 vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
   useStudentPracticeAnalytics: () => ({
     data: {
@@ -183,6 +185,7 @@ vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
         { difficulty: "easy",   rank: 1, attempts: 207, answered: 70, timed: 70, correct: 29, skipped: 137, accuracy: 41.4, avg_sec: 2.9 },
         { difficulty: "medium", rank: 2, attempts: 234, answered: 96, timed: 94, correct: 46, skipped: 138, accuracy: 47.9, avg_sec: 2.6 },
       ],
+      by_form: forms.rows,
       effort: { attempts: 564, questions_seen_again: 481, first_try_attempts: 56, first_try_correct: 20 },
       recurring: [],
     },
@@ -196,6 +199,10 @@ import Analysis from "./Analysis";
 const openTab = (label: string) => fireEvent.click(screen.getByRole("tab", { name: label }));
 
 describe("Analysis — rendered", () => {
+  beforeEach(() => {
+    forms.rows = [];
+  });
+
   it("agrees the verb with the count it just pluralised", () => {
     render(<MemoryRouter><Analysis /></MemoryRouter>);
     // One weak topic survives the filter, and the sentence read
@@ -309,6 +316,39 @@ describe("Analysis — rendered", () => {
     const tile = screen.getByText("Study time (4 weeks)").parentElement as HTMLElement;
     expect(within(tile).getByText("1h 47m")).toBeInTheDocument();
     expect(within(tile).queryByText("11h 47m")).toBeNull();
+  });
+
+  it("shows nothing by kind of question when only direct questions were met (C1)", () => {
+    // The fixture student's own record, measured 2026-10-09: 3,007 attempts, all direct.
+    forms.rows = [{ form: "mcq", attempts: 3007, answered: 796, timed: 787, correct: 365, skipped: 2211, accuracy: 45.9, avg_sec: 1.0 }];
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
+    openTab("Practice");
+    expect(screen.queryByText("How you do by kind of question")).toBeNull();
+    // CONTROL: the tab itself is drawn.
+    expect(screen.getByText("How you do by difficulty")).toBeInTheDocument();
+  });
+
+  it("shows accuracy by kind of question, weakest first, a percentage only past the floor (C1)", () => {
+    // The exam account 095998bc's record, measured 2026-10-09, in the server's order.
+    forms.rows = [
+      { form: "mcq", attempts: 237, answered: 112, timed: 112, correct: 29, skipped: 125, accuracy: 25.9, avg_sec: 3.4 },
+      { form: "assertion_reason", attempts: 10, answered: 3, timed: 3, correct: 1, skipped: 7, accuracy: 33.3, avg_sec: 2.5 },
+      { form: "match", attempts: 10, answered: 0, timed: 0, correct: 0, skipped: 10, accuracy: null, avg_sec: null },
+    ];
+    render(<MemoryRouter><Analysis /></MemoryRouter>);
+    openTab("Practice");
+    expect(screen.getByText("How you do by kind of question")).toBeInTheDocument();
+    const rows = screen.getAllByTestId("form-accuracy-row");
+    expect(rows.map((r) => r.querySelector("td")?.textContent)).toEqual(["Direct question", "Assertion–reason", "Match the following"]);
+    expect(rows[0]).toHaveTextContent("29 of 112");
+    expect(rows[0]).toHaveTextContent("26%");
+    // Three answers are not enough for a percentage: the counts, and a dash.
+    expect(rows[1]).toHaveTextContent("1 of 3");
+    expect(within(rows[1]).queryByText("33%")).toBeNull();
+    expect(rows[1]).toHaveTextContent("—");
+    // Every match question skipped: said as skips, not as 0%.
+    expect(rows[2]).toHaveTextContent("0 of 0 · 10 skips");
+    expect(within(rows[2]).queryByText("0%")).toBeNull();
   });
 
   it("reports how the student works per question, and not what it cannot measure", () => {

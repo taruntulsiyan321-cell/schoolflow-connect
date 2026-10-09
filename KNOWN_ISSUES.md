@@ -5346,3 +5346,30 @@ stays:
    production. They are covered by component tests (with mutants) and the live probes above.
 7. **B7, plan counting,** is still to be discussed with the owner. Today the free plan allows 1 mock in total,
    counted at start.
+
+## 120. Accuracy by kind of question, across all practice — BUILT and LIVE 2026-10-09 (20261151000000); what is open
+
+**docs/TODO.md C1.** `rpc_student_practice_analytics` gains `by_form`: every attempt under exactly one form, with the
+same counts and denominators as the other groups, weakest first. A bank question's form is its bank row's
+`question_format` (kept equal to its laid-out text by 20261141000000's trigger). An attempt with no bank row is read
+from its own copy of the text by `question_form_of`. Analysis → Practice shows "How you do by kind of question"
+once a student has met more than one kind. It gives a percentage only past the floor, says skips as skips, and
+offers no praise.
+
+**Measured:**
+* The migration's proof, run as the most active student, checks that every attempt is counted once. It also inserts
+  two attempts and rolls them back: an assertion–reason text with no bank row, and a bank match question whose copy
+  is plain. Each lands in its own form, and the direct row does not move.
+* 4 mutants are refused. Two of them showed that the proof's first checks compared NULL with `<>` and could never
+  fire on a missing group; they were rewritten as `IS DISTINCT FROM`.
+* 5 screen mutants are killed.
+* Live, as the exam account 095998bc: direct 29 of 112 (26%), assertion–reason 1 of 3, and every match, statement,
+  sequence and case question skipped (10, 7, 4, 2).
+
+**Open:**
+1. **Most practice is direct questions:** 3,611 bank attempts against 33 on every other form, measured 2026-10-09. The
+   card is hidden for a student who has met direct questions only, which is most students today. It fills as the
+   bank gains forms (A's work, paused) and as C7 makes practice follow the paper's mix.
+2. **4,812 attempts have no bank row and are read from the text they kept.** One made before 20261141000000 laid out
+   its form keeps its old layout, so an old match question whose lists sat in its options reads as direct. Only the
+   bank rows were re-laid.

@@ -156,9 +156,9 @@ plan allows 1 mock in total and counts at start (`mock_test.start`).
 
 Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
 
-- **C1. Accuracy by question type across all practice** — "70% on direct MCQs,
-  30% on assertion–reason". The most actionable CUET figure not yet shown.
-  (Session results already break down by type; this is the whole history.)
+- **~~C1. Accuracy by question type across all practice~~ — DONE 2026-10-09
+  (20261151000000, KNOWN_ISSUES 120)** — "70% on direct MCQs, 30% on
+  assertion–reason". Analysis → Practice: "How you do by kind of question".
 - **C2. Lucky guesses go into revision.** A right answer marked as a guess is
   not knowledge, yet today it never enters recovery or revision.
 - **C3. Does guessing pay, for this student.** With +5/−1 a guess pays above

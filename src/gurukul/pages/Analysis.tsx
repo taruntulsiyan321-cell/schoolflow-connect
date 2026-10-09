@@ -76,6 +76,7 @@ import { useSyllabusMap } from "@/hooks/useSyllabusMap";
 import { SyllabusCoverage } from "@/components/student/analysis/SyllabusCoverage";
 import { SlippingTopics } from "@/components/student/analysis/SlippingTopics";
 import { ReadinessEstimate } from "@/components/student/analysis/ReadinessEstimate";
+import { FormAccuracy } from "@/components/student/analysis/FormAccuracy";
 import { readinessRows } from "@/academic/metrics/readiness";
 
 
@@ -1989,6 +1990,15 @@ export default function Analysis() {
                 </div>
               )}
             </Card>
+
+            {/* ── How you do by kind of question (C1) ─────────────────────
+                Only when the student has met more than one kind: with direct
+                questions alone there is nothing to set against them. */}
+            {(practiceAnalytics?.by_form ?? []).length > 1 && (
+              <Card label="How you do by kind of question">
+                <FormAccuracy rows={practiceAnalytics?.by_form ?? []} />
+              </Card>
+            )}
 
             {/* ── How you work ───────────────────────────────────────────
                 Per BANK QUESTION (20261115000000). Neither figure is a

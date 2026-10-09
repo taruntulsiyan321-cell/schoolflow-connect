@@ -49,6 +49,19 @@ describe("parseAnalytics", () => {
     expect(parseAnalytics({ by_chapter: [row({ timed: null })] }).ok).toBe(false);
   });
 
+  it("reads accuracy by kind of question under the same contract (C1)", () => {
+    const form = { form: "assertion_reason", attempts: 10, answered: 3, timed: 3, correct: 1, skipped: 7, accuracy: 33.3, avg_sec: 2.5 };
+    const { data, ok } = parseAnalytics({ by_form: [form] });
+    expect(ok).toBe(true);
+    expect(data.by_form).toEqual([form]);
+    // A form row without its denominators is refused like any other group's.
+    expect(parseAnalytics({ by_form: [{ ...form, answered: undefined }] }).ok).toBe(false);
+    // A payload from before 20261151000000 has none: no rows, not an error.
+    const old = parseAnalytics({ by_subject: [row()] });
+    expect(old.ok).toBe(true);
+    expect(old.data.by_form).toEqual([]);
+  });
+
   it("coerces numeric strings, which is what JSON numerics can arrive as", () => {
     const { data, ok } = parseAnalytics({
       by_subject: [row({ attempts: "408", answered: "220", timed: "402", accuracy: "45.9" })],
