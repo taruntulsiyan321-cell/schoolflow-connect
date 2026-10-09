@@ -241,13 +241,13 @@ export function questionOneLine(text: string, options?: ReadonlyArray<string> | 
 /**
  * The one description of the JSON a writer returns for a question, by form —
  * for AI Practice's writer and for the report check's rewrite. "options" and
- * "answer" go with every form; an assertion–reason question's options are
- * always AR_OPTIONS, whatever is sent.
+ * "answer" go with every form. Assertion–reason is not described: no writer
+ * writes it (questionRubric.FORMS_NOT_WRITTEN — the real paper does not set
+ * it), though readQuestionParts still reads one.
  */
 export const FORM_JSON_GUIDE = [
   'Every question has "form" and the fields of that form:',
   '- "mcq": "question" — a direct question.',
-  '- "assertion_reason": "assertion" and "reason" — two statements; the options are always the four standard ones (A both true and R explains A; B both true and R does not explain A; C A true, R false; D A false, R true).',
   '- "statements": "intro" (e.g. "Consider the following statements:"), "statements" — 2 to 5 of them, and "ask" (e.g. "Which of the statements given above are correct?"); options refer to the statements by Roman numeral ("I and III only").',
   '- "match": "intro" (e.g. "Match List I with List II:"), "list1_title", "list1" — 3 to 5 items, "list2_title", "list2" — the same number, and "ask" (e.g. "Choose the correct answer from the options given below:"); each option is a full matching written as codes ("A-II, B-I, C-IV, D-III"); List II is in a SHUFFLED order, so the right matching is never A-I, B-II, C-III….',
   '- "case_based": "passage" — a case or passage of 4 to 8 sentences with every fact the question needs, and "ask" — the question on it.',

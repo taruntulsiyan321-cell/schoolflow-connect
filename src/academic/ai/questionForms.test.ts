@@ -15,6 +15,7 @@ import {
   readQuestionLayout,
   readQuestionParts,
 } from "../../../supabase/functions/_shared/questionForms.ts";
+import { isWrittenForm } from "../../../supabase/functions/_shared/questionRubric.ts";
 import { readRequestReply, readWrittenQuestion } from "../../../supabase/functions/_shared/aiPractice.ts";
 import type { SyllabusChapter } from "../../../supabase/functions/_shared/syllabusTag.ts";
 
@@ -137,8 +138,11 @@ describe("reading what a writer sends", () => {
     expect(canonicalOrder("II, I, IV", 4)).toBeNull();
   });
 
-  it("the guide every writer is given names every form", () => {
-    for (const f of QUESTION_FORMS) expect(FORM_JSON_GUIDE).toContain(`"${f}"`);
+  it("the guide every writer is given names every form a writer writes, and no other", () => {
+    for (const f of QUESTION_FORMS) {
+      if (isWrittenForm(f)) expect(FORM_JSON_GUIDE).toContain(`"${f}"`);
+      else expect(FORM_JSON_GUIDE).not.toContain(`"${f}"`);
+    }
   });
 });
 

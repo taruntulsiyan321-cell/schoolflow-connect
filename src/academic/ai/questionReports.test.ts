@@ -16,6 +16,8 @@ import {
   keepVerdict,
   readDecision,
   readReview,
+  REWRITE_SOLVE_TEMPERATURES,
+  reviewSystemPrompt,
   reviewUserPrompt,
   rewriteVerdict,
   settleSolves,
@@ -24,6 +26,7 @@ import {
   unresolvedVerdict,
   withdrawVerdict,
 } from "../../../supabase/functions/_shared/questionReports.ts";
+import { CRITERION_IDS, readRubricReview, reviewRecord, RUBRIC } from "../../../supabase/functions/_shared/questionRubric.ts";
 
 /**
  * A student's report on a question, settled by the AI (§10.21; owner's ruling
@@ -123,6 +126,15 @@ describe("the review of a question reported as faulty", () => {
     expect(readReview(null)).toBeNull();
   });
 
+  it("a rewrite is held to the rubric, and an assertion–reason question is rewritten as statements", () => {
+    const p = reviewSystemPrompt("CUET (UG)");
+    for (const c of RUBRIC) expect(p).toContain(c.test);
+    expect(p).toContain("an assertion–reason question is rewritten as a statement-based one");
+    expect(p).not.toContain('"assertion_reason"');
+    // The rewrite must reach its own key at two temperatures, as before the gate.
+    expect([...REWRITE_SOLVE_TEMPERATURES]).toEqual([0, 0.4]);
+  });
+
   it("only fault reports' notes are pointers", () => {
     expect(faultNotes([report("wrong_answer", "It is C"), report("question_error", "Data missing", "q"), report("other", "Two look right", "o")]))
       .toBe("Data missing / Two look right");
@@ -165,9 +177,13 @@ describe("what each report is told", () => {
     const rw = readReview({ usable: false, problem: "The capitals are missing.", rewrite: goodRewrite });
     if (rw?.usable !== false || !rw.rewrite) throw new Error("fixture");
     const now = new Date("2026-10-03T10:00:00Z");
-    expect(rewriteVerdict(reports, rw.problem, rw.rewrite, now)).toMatchObject({
+    // The review the rewrite passed at the quality gate goes with it: the database refuses a rewrite without one.
+    const passed = readRubricReview({ marks: CRITERION_IDS.map((criterion) => ({ criterion, pass: true })), difficulty: "medium" })!;
+    const review = reviewRecord(passed, [1, 1], "qwen/qwen3.7-flash", now);
+    expect(rewriteVerdict(reports, rw.problem, rw.rewrite, review, now)).toMatchObject({
       kind: "rewrite", question: goodRewrite.question, correct_index: 1,
       outcome: expect.stringContaining("The capitals are missing. It has been rewritten"),
+      quality_review: review,
     });
     expect(withdrawVerdict(reports, rw.problem, "no rewrite passed the checks", now).note)
       .toBe("Report check 2026-10-03: The capitals are missing. Withdrawn (no rewrite passed the checks).");

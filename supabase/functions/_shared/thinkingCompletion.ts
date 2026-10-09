@@ -13,7 +13,9 @@
  * Same model (getConfiguredModelId) and the same retry policy (withRetry) as
  * every other call. It lives apart from modelRouter so that changing how a
  * check is made does not redeploy every function that talks to students.
- * Used by question-explanations and ai-practice only.
+ * Used by the functions that check questions: question-explanations,
+ * question-reports, and — through the quality gate (questionGate.ts) —
+ * ai-practice and ai-recovery-variants.
  */
 import { getConfiguredModelId } from "./modelRouter.ts";
 import { DEFAULT_PROVIDER_RETRY, withRetry } from "./failureRecovery.ts";

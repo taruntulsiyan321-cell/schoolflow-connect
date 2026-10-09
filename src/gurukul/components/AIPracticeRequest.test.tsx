@@ -52,6 +52,12 @@ describe("asking AI Practice", () => {
     expect(fn).toContain(`export const PROMPT_MAX_CHARS = ${AI_PRACTICE_PROMPT_MAX};`);
   });
 
+  it("never invites assertion–reason, which the real paper does not set (A1, ruled 2026-10-09)", () => {
+    const { container } = render(<MemoryRouter><AIPracticeRequest accentColor="hsl(0 0% 50%)" onReady={vi.fn()} /></MemoryRouter>);
+    expect(container.textContent).toContain("match the following");
+    expect(container.textContent).not.toMatch(/assertion/i);
+  });
+
   it("nothing to ask, nothing to send; an example or an earlier request fills the box", async () => {
     show();
     expect(go()).toBeDisabled();

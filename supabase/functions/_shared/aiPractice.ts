@@ -2,7 +2,8 @@
  * AI Practice (owner's ruling 2026-10-02): a student asks in their own words —
  * "20 medium questions on goodwill" — and gets a practice session of it. The
  * bank answers first; AI writes only the shortfall, and a question it writes
- * is kept only if a second, independent solve reaches the same answer. What is
+ * is kept only if it passes the quality gate (questionGate.ts: the rubric's
+ * rules, an independent solve and a review against every criterion). What is
  * kept enters the shared bank (store_generated_questions), tagged.
  *
  * This module is the pure half: prompts, and the reading and checking of what
@@ -25,6 +26,8 @@ import {
   type QuestionForm,
   readQuestionParts,
 } from "./questionForms.ts";
+import { type ChapterScope, DIFFICULTY_DEFINITIONS, DIFFICULTY_LEVELS, rubricLines, scopeLines, type WrittenForm } from "./questionRubric.ts";
+import { stripOptionLabels } from "./optionLabels.ts";
 
 /** Owner: up to 30 questions in one request. */
 export const MAX_QUESTIONS = 30;
@@ -142,11 +145,14 @@ export function writeSystemPrompt(examLabel: string): string {
   return [
     `You write multiple-choice questions for students preparing for ${examLabel}, at the level of the real exam, from the NCERT Class 12 syllabus.`,
     "",
-    "Each question:",
-    `- has exactly ${OPTION_COUNT} options and exactly one correct answer; the wrong options are plausible mistakes a student makes, never jokes;`,
-    "- states every number a calculation needs, and the arithmetic must be right — check it before you answer;",
-    "- stays inside the chapter it is written for, and cites a law or section only when you are certain of its number;",
-    '- never repeats its options inside the question text, never carries labels such as "[Chapter name]", and never mentions "the student" or "the original question".',
+    "Every question you write is reviewed against this rubric before a student sees it, and one that fails any criterion is thrown away:",
+    rubricLines(),
+    "",
+    "And each question:",
+    `- has exactly ${OPTION_COUNT} options; a calculation's arithmetic must be right — check it before you answer;`,
+    "- cites a law or section only when you are certain of its number;",
+    '- never repeats its options inside the question text, never carries labels such as "[Chapter name]", and never mentions "the student" or "the original question";',
+    `- is the difficulty it is labelled: ${DIFFICULTY_LEVELS.map((d) => `${d} — ${DIFFICULTY_DEFINITIONS[d]}`).join("; ")}.`,
     "",
     "Each explanation:",
     "- working: the full reasoning, step by step, as a good teacher writes it — at least 3 sentences (120+ characters) and at most 150 words; for a calculation, every step with its numbers. Settle the answer before you write: the JSON holds only the finished explanation, never your deliberation (\"But if…? No, …\");",
@@ -167,10 +173,12 @@ export function writeUserPrompt(input: {
   topicId: string | null;
   focus: string;
   difficulty: Difficulty | null;
-  form: QuestionForm | null;
+  form: WrittenForm | null;
   count: number;
   examples: ReadonlyArray<StyleExample>;
   avoid: ReadonlyArray<string>;
+  /** The chapter's official syllabus (20261149000000): nothing outside it is written. */
+  scope?: ChapterScope | null;
 }): string {
   const topicLines = input.topics.map((t, i) => `T${i + 1} ${t.name}`).join("; ");
   const only = input.topicId ? input.topics.findIndex((t) => t.id === input.topicId) : -1;
@@ -179,13 +187,15 @@ export function writeUserPrompt(input: {
   return [
     `Subject: ${input.subject}`,
     `Chapter: ${input.chapter}`,
+    ...scopeLines(input.scope),
+    ...(input.scope ? ["Write nothing outside that syllabus."] : []),
     `Topics (answer "topic" with one of these codes): ${topicLines}`,
     only >= 0 ? `Every question is on topic T${only + 1}.` : "Spread the questions across the topics the request is about.",
     `The student asked for: ${input.focus}`,
     `Write ${input.count} question${input.count === 1 ? "" : "s"}${input.difficulty ? `, all ${input.difficulty}` : ", a mix of easy, medium and hard"}.`,
     input.form
       ? `Every question is ${FORM_LABELS[input.form].toLowerCase()} (form "${input.form}").`
-      : "Use the form that suits each idea, as the real exam mixes them: mostly direct questions, with assertion–reason, statement-based, match-the-following, case-based and sequence questions where they fit.",
+      : "Use the form that suits each idea, as the real exam mixes them: mostly direct questions, with statement-based, match-the-following, case-based and sequence questions where they fit.",
     examples.length ? `\nReal questions from this chapter, for the level and style (do not copy them):\n${examples.join("\n\n")}` : "",
     input.avoid.length ? `\nDo not write these again:\n${input.avoid.slice(0, 30).map((q) => `- ${q.slice(0, 160)}`).join("\n")}` : "",
   ].filter(Boolean).join("\n");
@@ -203,9 +213,8 @@ export const MAX_DRAFTS = 40;
  * List I's order. A form is longer and fails more often than a direct question.
  * No form asked for (null) means the exam's mix.
  */
-const FORM_PLAN: Record<QuestionForm | "mix", { tokens: number; batch: number; overwrite: number }> = {
+const FORM_PLAN: Record<WrittenForm | "mix", { tokens: number; batch: number; overwrite: number }> = {
   mcq: { tokens: 1000, batch: 5, overwrite: 1.5 },
-  assertion_reason: { tokens: 1200, batch: 5, overwrite: 1.75 },
   statements: { tokens: 1400, batch: 4, overwrite: 2 },
   sequence: { tokens: 1400, batch: 4, overwrite: 2 },
   // Two to a call: three match questions took most of a minute to write and
@@ -215,7 +224,7 @@ const FORM_PLAN: Record<QuestionForm | "mix", { tokens: number; batch: number; o
   mix: { tokens: 1500, batch: 4, overwrite: 1.75 },
 };
 
-export function writePlan(form: QuestionForm | null, shortfall: number): { batches: number[]; maxTokens: (n: number) => number } {
+export function writePlan(form: WrittenForm | null, shortfall: number): { batches: number[]; maxTokens: (n: number) => number } {
   const plan = FORM_PLAN[form ?? "mix"];
   const need = Math.min(MAX_DRAFTS, Math.ceil(shortfall * plan.overwrite) + 1);
   const batches: number[] = [];
@@ -258,7 +267,8 @@ export function readWrittenQuestion(
   // An assertion–reason question's options are the standard four, whatever was sent.
   const sent = shape.form === "assertion_reason" ? [...AR_OPTIONS] : r.options;
   if (!Array.isArray(sent) || sent.length !== OPTION_COUNT) return { ok: false, reason: `needs ${OPTION_COUNT} options` };
-  const plain = sent.map((o) => String(o ?? "").replace(/\s+/g, " ").trim());
+  // The app letters options itself: a writer's own "A) …" would show as "A. A) …" (measured 2026-10-09).
+  const plain = stripOptionLabels(sent.map((o) => String(o ?? "").replace(/\s+/g, " ").trim()));
   // A matching or an order is stored one way, however it was written.
   const options = shape.form === "match"
     ? plain.map((o) => canonicalMatch(o, shape.list1.length) ?? o)
@@ -278,10 +288,14 @@ export function readWrittenQuestion(
   const misfit = optionsShortfall(shape, options, correctIndex);
   if (misfit) return { ok: false, reason: misfit };
 
-  const tm = String(r.topic ?? "").trim().toUpperCase().match(/^T(\d+)$/);
-  const picked = tm ? topics[Number(tm[1]) - 1] : undefined;
+  // "T3" as asked — or, as writers also put it, "T3 Returns to Scale" or the
+  // topic's name alone. Measured 2026-10-09: a whole supply run of Economics
+  // was thrown away over "T1 Meaning of Production".
+  const said = String(r.topic ?? "").trim();
+  const tm = said.toUpperCase().match(/^T(\d+)\b/);
+  const picked = tm ? topics[Number(tm[1]) - 1] : topics.find((t) => t.name.toLowerCase() === said.toLowerCase());
   const topic = topicId ? topics.find((t) => t.id === topicId) : picked;
-  if (!topic) return { ok: false, reason: "no topic of the chapter" };
+  if (!topic) return { ok: false, reason: `no topic of the chapter ("${String(r.topic ?? "").slice(0, 40)}")` };
 
   const d = String(r.difficulty ?? "").trim().toLowerCase();
   const difficulty = ((DIFFICULTIES as readonly string[]).includes(d) ? d : "medium") as Difficulty;

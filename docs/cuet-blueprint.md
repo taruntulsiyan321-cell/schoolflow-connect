@@ -1,7 +1,9 @@
 # CUET blueprints — the real paper, subject by subject
 
-**Status: DRAFT for the owner's approval (TODO A1). Nothing uses this until it
-is approved.** Written 2026-10-07.
+**Status: APPROVED 2026-10-09.** Written 2026-10-07; the owner answered the
+seven decisions below with "go" — every proposal as written. Used by the
+quality gate (TODO A2: no new assertion–reason questions), and to come by the
+mock creator (B) and practice in the exam's mix (C7).
 
 The owner has no CUET papers to give, so the pattern was measured from the
 papers themselves: every question of eleven complete NTA papers — 630 questions
@@ -282,7 +284,7 @@ generous.)
 
 ---
 
-## Decisions for the owner
+## Decisions — approved 2026-10-09, each as proposed
 
 1. **Approve each subject's blueprint** — the form table and the chapter table
    above — or say what to change.

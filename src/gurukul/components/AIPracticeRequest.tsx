@@ -18,7 +18,7 @@ import { cn } from "@/gurukul/components/shared";
 const EXAMPLES = [
   "20 medium questions on goodwill valuation",
   "10 hard questions on ratio analysis",
-  "10 assertion–reason questions on Fayol's principles",
+  "10 match the following questions on Fayol's principles",
   "5 case-based questions on national income accounting",
 ];
 
@@ -27,14 +27,15 @@ const STAGES = [
   "Reading your request…",
   "Looking for matching questions in the bank…",
   "Writing new questions…",
-  "Double-checking every answer…",
+  "Checking every question and its answer…",
 ];
 
 /**
  * AI Practice: the student says what to practise, in their own words, and
  * gets a session of it (owner's ruling 2026-10-02). The bank's questions come
- * first; new ones are written by AI and kept only when an independent check
- * reaches the same answer.
+ * first; new ones are written by AI and kept only when they pass the quality
+ * gate — an independent solve reaches the same answer and a review passes the
+ * question on every criterion of the rubric (TODO A2).
  */
 export function AIPracticeRequest({
   accentColor,
@@ -101,9 +102,10 @@ export function AIPracticeRequest({
           <Sparkles className="h-4 w-4" style={{ color: accentColor }} aria-hidden /> Tell AI what to practise
         </div>
         <p className="mb-3 text-sm text-muted-foreground">
-          Name a chapter or topic from your syllabus, and say how many questions, how hard and what kind — assertion–reason,
-          statement-based, match the following, case-based — if you like.
-          Questions from the bank come first; new ones are written by AI and kept only when a second check gets the same answer.
+          Name a chapter or topic from your syllabus, and say how many questions, how hard and what kind — statement-based,
+          match the following, case-based, sequence — if you like.
+          Questions from the bank come first; new ones are written by AI and kept only when an independent check gets the same
+          answer and a review passes them as fit for the real paper.
         </p>
         <label htmlFor="ai-practice-prompt" className="sr-only">What do you want to practise?</label>
         <textarea

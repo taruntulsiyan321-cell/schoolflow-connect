@@ -29,6 +29,14 @@
 // A variant that cannot be generated is SKIPPED, NOT FAKED. Anything that fails
 // validation is dropped and counted; nothing is padded to hit a target.
 //
+// EVERY VARIANT PASSES THE QUALITY GATE (TODO A2, _shared/questionGate.ts):
+// none of the CBT rubric's rules broken, solved to its key by a call never told
+// it, and passed by a review on every criterion of the rubric. This function
+// used to run its own answer check, one batched call per generation; that check
+// is the gate's now, in one home for every writer. Every variant gated is
+// recorded in question_gate_outcomes, and the bank door refuses one without a
+// passing review (20261148000000).
+//
 // WHO MAY CALL IT
 // A background worker holding the `variant_generation_drain` secret, and
 // nobody else. §4.1a is emphatic that nothing is generated while a student
@@ -67,6 +75,13 @@
 // (a repeat of a question already in the bank, say) is reported, not faked.
 import { stripOptionLabels } from "../_shared/optionLabels.ts";
 import { corsHeaders, generateStructuredWithFallback, jsonResponse } from "../_shared/structuredCompletion.ts";
+import { examLabel } from "../_shared/answerCheck.ts";
+import { getConfiguredModelId } from "../_shared/modelRouter.ts";
+import { formOf } from "../_shared/questionForms.ts";
+import { gateQuestion, tallyGate } from "../_shared/questionGate.ts";
+import { rubricLines, scopeLines } from "../_shared/questionRubric.ts";
+import { loadChapterScope } from "../_shared/questionWriterDb.ts";
+import { completeThinking } from "../_shared/thinkingCompletion.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 /** Normalised source for generation — bank row or private upload question. */
@@ -75,6 +90,10 @@ type SourceForGeneration = {
   source_question_id: string | null;
   source_upload_question_id: string | null;
   topic_id: string;
+  chapter_id: string | null;
+  exam_id: string | null;
+  exam_code: string | null;
+  board: string | null;
   class_level: number | null;
   subject: string | null;
   chapter: string | null;
@@ -91,6 +110,10 @@ type BankSourceRow = {
   class_level: number | null;
   subject: string | null;
   chapter: string | null;
+  chapter_id: string | null;
+  exam_id: string | null;
+  board: string | null;
+  competitive_exams: { code: string } | null;
   topic_id: string | null;
   topics: { name: string } | null;
   difficulty: string | null;
@@ -170,14 +193,15 @@ const SCHEMA = {
   required: ["variants"],
 };
 
+/** A variant that is well formed, before the quality gate. */
+type Candidate = { question: string; options: string[]; correct_index: number; explanation: string };
+
 /**
  * Skipped, not faked. Every reason a variant is dropped is counted and named, so
  * "we made 2 of 3" is never reported as "we made 3" and a systematically bad
  * prompt shows up as a skip reason rather than as silence.
  */
-function validate(v: GeneratedVariant, original: string): { ok: true; value: {
-  question: string; options: string[]; correct_index: number; explanation: string;
-} } | { ok: false; why: string } {
+function validate(v: GeneratedVariant, original: string): { ok: true; value: Candidate } | { ok: false; why: string } {
   const q = typeof v.question === "string" ? v.question.trim() : "";
   if (q.length < 12) return { ok: false, why: "question missing or too short" };
 
@@ -205,170 +229,6 @@ function validate(v: GeneratedVariant, original: string): { ok: true; value: {
   }
 
   return { ok: true, value: { question: q, options, correct_index: ci, explanation } };
-}
-
-/**
- * The shape gate above is not an answer gate, and four questions proved it.
- *
- * Read and solved by hand on 2026-09-17, 4 of the 40 variants this function
- * had produced were mathematically wrong. Every one of them passed validate()
- * — they are well-formed: four distinct options, an index in range, a fluent
- * explanation. What none of them had was a correct answer:
- *
- *   "S_n = 3n^2 + 5n. What is the 10th term?"   a_10 = 62. Options: 47, 57,
- *                                               67, 77. Marked: 57.
- *   "Sum 216, first term 8, last term 56. How   n = 432/64 = 6.75. There is
- *    many terms?"                               no such AP. Marked: 6.
- *   "S_n = 3n^2 + 5n. nth term is 107. Find n"  6n+2 = 107 -> n = 17.5.
- *                                               Marked: 8.
- *   "a^3+b^3+c^3 = 3abc, abc != 0. a+b+c = ?"   0 OR a=b=c. a=b=c=1 gives 3,
- *                                               also on the list. Marked: 0.
- *
- * Three share one signature: the model invents numbers, does not solve what it
- * invented, and picks a plausible integer. The fourth is a "must be" question
- * with two correct options.
- *
- * These are RECOVERY questions. They go to the student who already failed the
- * topic, and the mistakes they create feed weak-topic detection, the recovery
- * ladder and the revision schedule. Measured: those four were served 5 times
- * and created 5 mistake-book rows, and one student was marked CORRECT for
- * answering 6 to a question whose answer is 6.75.
- *
- * So the question is solved again, in a SEPARATE call that is never told which
- * option the writer marked. Agreement is the gate. The solver is also asked
- * whether exactly one option is correct, which is what catches the fourth: a
- * question can have a derivable answer and still be broken because two of its
- * options are right.
- *
- * Temperature 0: this is arithmetic, not writing, and a solver that varies
- * run to run is not a check.
- *
- * COST. One extra call per generation batch, not per variant. §4.2a's
- * economics survive it — a wrong variant is cached and served to every student
- * who fails that question afterwards, so paying once to not store it is the
- * cheaper side of the trade by a wide margin.
- */
-const CHECK_SCHEMA = {
-  type: "object",
-  properties: {
-    answers: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          n: { type: "integer" },
-          working: { type: "string" },
-          // -1 is a real answer here: "none of these options is correct".
-          // Without it the solver has to name one, and a forced choice from a
-          // broken option list is exactly the failure being looked for.
-          correct_index: { type: "integer", minimum: -1, maximum: 3 },
-          exactly_one_correct: { type: "boolean" },
-        },
-        required: ["n", "working", "correct_index", "exactly_one_correct"],
-      },
-    },
-  },
-  required: ["answers"],
-};
-
-type SolvedAnswer = {
-  n?: unknown;
-  working?: unknown;
-  correct_index?: unknown;
-  exactly_one_correct?: unknown;
-};
-
-type Candidate = { question: string; options: string[]; correct_index: number; explanation: string };
-
-/**
- * Solve each candidate independently and report, per candidate, why it may or
- * may not be stored. Never told the writer's answer.
- *
- * On a failed AI call every candidate is REJECTED, not waved through. A check
- * that disappears when it errors is not a check, and this function's own rule
- * is that a variant which cannot be produced is skipped rather than faked.
- */
-async function solveBack(
-  candidates: Candidate[],
-  context: { subject: string; chapter: string; classLevel: string },
-): Promise<{ verdicts: ({ ok: true } | { ok: false; why: string })[]; usage: unknown }> {
-  const system =
-    "You are a careful examiner for Indian students — school boards (CBSE/RBSE) and entrance " +
-    "exams such as CUET, on the NCERT syllabus, in any subject. You are given multiple-choice " +
-    "questions and you SOLVE them.\n\n" +
-    "For each question: work it out, then say which option index (0-3) is correct.\n\n" +
-    "HARD RULES:\n" +
-    "- Do the arithmetic. Do not assume the question is well-posed.\n" +
-    "- If your worked answer is NOT among the four options, return correct_index -1. " +
-    "Do not pick the nearest one.\n" +
-    "- If the question as worded has NO valid solution (a count that is not a whole number, " +
-    "a contradictory condition), return correct_index -1.\n" +
-    "- Set exactly_one_correct false if two or more options satisfy the question as worded, " +
-    "even when one of them is the intended answer.\n" +
-    // Measured 2026-09-24: left unbounded, `working` became a markdown essay
-    // and the answer was cut off at 2,400 tokens before it closed — every
-    // such check failed as invalid JSON, and so did the variant.
-    "- Keep `working` short: the deciding calculation or reason in at most 4 lines and 60 words, " +
-    "plain text, no headings or markdown.";
-
-  const user = [
-    `Subject: ${context.subject}`,
-    `Chapter: ${context.chapter}`,
-    `Class: ${context.classLevel}`,
-    "",
-    ...candidates.flatMap((c, i) => [
-      `QUESTION ${i}:`,
-      c.question,
-      ...c.options.map((o, oi) => `  ${oi}. ${o}`),
-      "",
-    ]),
-    `Solve all ${candidates.length} and return one answer object per question, with n set to the question number.`,
-  ].join("\n");
-
-  const ai = await generateStructuredWithFallback<{ answers: SolvedAnswer[] }>(
-    { system, user, schema: CHECK_SCHEMA, toolName: "emit_answers" },
-    { max_tokens: Math.min(4000, Math.max(1200, candidates.length * 400)), temperature: 0 },
-  );
-
-  if (!ai.ok) {
-    return {
-      verdicts: candidates.map(() => ({
-        ok: false as const,
-        why: `answer check could not run (${ai.error}) — not stored unverified`,
-      })),
-      usage: null,
-    };
-  }
-
-  const byN = new Map<number, SolvedAnswer>();
-  for (const a of ai.data.answers ?? []) {
-    const n = typeof a.n === "number" ? a.n : Number.NaN;
-    if (Number.isInteger(n)) byN.set(n, a);
-  }
-
-  const verdicts = candidates.map((c, i) => {
-    const a = byN.get(i);
-    if (!a) return { ok: false as const, why: "answer check returned nothing for this variant" };
-    if (a.exactly_one_correct === false) {
-      return { ok: false as const, why: "more than one option satisfies the question as worded" };
-    }
-    const solved = typeof a.correct_index === "number" ? a.correct_index : Number.NaN;
-    if (solved === -1) {
-      return { ok: false as const, why: "solved independently: no option is correct" };
-    }
-    if (!Number.isInteger(solved) || solved < 0 || solved > 3) {
-      return { ok: false as const, why: `answer check returned index ${String(a.correct_index)}` };
-    }
-    if (solved !== c.correct_index) {
-      return {
-        ok: false as const,
-        why: `answer check says ${solved} ("${c.options[solved]}"), the writer marked ${c.correct_index} ("${c.options[c.correct_index]}")`,
-      };
-    }
-    return { ok: true as const };
-  });
-
-  return { verdicts, usage: { model_id: ai.model_id ?? null, source: ai.source } };
 }
 
 Deno.serve(async (req) => {
@@ -428,7 +288,7 @@ Deno.serve(async (req) => {
       const { data: row, error: srcErr } = await admin
         .from("question_bank")
         .select(
-          "id, class_level, subject, chapter, topic_id, topics(name), difficulty, question, options, correct_index, explanation",
+          "id, class_level, subject, chapter, chapter_id, exam_id, board, competitive_exams(code), topic_id, topics(name), difficulty, question, options, correct_index, explanation",
         )
         .eq("id", sourceQuestionId)
         .single<BankSourceRow>();
@@ -446,6 +306,10 @@ Deno.serve(async (req) => {
         source_question_id: row.id,
         source_upload_question_id: null,
         topic_id: row.topic_id,
+        chapter_id: row.chapter_id,
+        exam_id: row.exam_id,
+        exam_code: row.competitive_exams?.code ?? null,
+        board: row.board,
         class_level: row.class_level,
         subject: row.subject,
         chapter: row.chapter,
@@ -500,6 +364,11 @@ Deno.serve(async (req) => {
         source_question_id: null,
         source_upload_question_id: row.id,
         topic_id: row.topic_id,
+        chapter_id: row.chapter_id,
+        // A private upload names no exam; the reviewer is told its class.
+        exam_id: null,
+        exam_code: null,
+        board: null,
         class_level: classLevel,
         subject,
         chapter: row.chapters?.name ?? null,
@@ -512,7 +381,10 @@ Deno.serve(async (req) => {
       };
     }
 
-    // §4.2a's input list, and nothing beyond it.
+    // The chapter's official syllabus, for the writer and the review (20261149000000).
+    const scope = await loadChapterScope(admin, src.exam_id, src.chapter_id);
+
+    // §4.2a's input list — and the chapter's syllabus — and nothing beyond it.
     const originalOptions = Array.isArray(src.options) ? (src.options as unknown[]).map(String) : [];
     const correctAnswer =
       src.correct_index !== null && originalOptions[src.correct_index] !== undefined
@@ -533,13 +405,19 @@ Deno.serve(async (req) => {
       "- Write the explanation so it teaches the step the student most likely missed, in under " +
       "80 words of plain text — no headings or markdown.\n" +
       "- If you cannot write a genuine variant at this tier, return fewer. Returning a reworded " +
-      "copy to fill the count is worse than returning nothing.";
+      "copy to fill the count is worse than returning nothing.\n" +
+      "- Never write an assertion–reason question — the real paper does not set them; test the " +
+      "same idea as a direct or statement-based question.\n\n" +
+      "Every variant is reviewed against this rubric before a student sees it, and one that fails " +
+      "any criterion is thrown away:\n" +
+      rubricLines();
 
     const user = [
       `Chapter: ${src.chapter ?? "(unknown)"}`,
       `Topic: ${src.topic_name ?? "(unknown)"}`,
       `Subject: ${src.subject ?? "(unknown)"}`,
       `Class: ${src.class_level ?? "(unknown)"}`,
+      ...scopeLines(scope),
       `Difficulty to match: ${src.difficulty ?? "(unknown)"}`,
       "",
       "ORIGINAL QUESTION (the student got this wrong):",
@@ -576,25 +454,49 @@ Deno.serve(async (req) => {
       wellFormed.push(v.value);
     }
 
-    // THE SECOND GATE. Shape is not correctness — see solveBack's header for
-    // the four questions that taught this function so. Nothing reaches the
-    // bank without being solved again by a caller that was never told the
-    // answer.
-    let checkUsage: unknown = null;
-    const accepted: Candidate[] = [];
-    if (wellFormed.length > 0) {
-      const checked = await solveBack(wellFormed, {
-        subject: src.subject ?? "(unknown)",
-        chapter: src.chapter ?? "(unknown)",
-        classLevel: String(src.class_level ?? "(unknown)"),
-      });
-      checkUsage = checked.usage;
-      wellFormed.forEach((c, i) => {
-        const verdict = checked.verdicts[i];
-        if (verdict?.ok) accepted.push(c);
-        else skipped.push(verdict?.why ?? "answer check produced no verdict");
-      });
-    }
+    // THE QUALITY GATE. Shape is not correctness, and correctness is not
+    // quality: each well-formed variant is gated on its own (questionGate.ts).
+    const label = examLabel({ exam_code: src.exam_code, class_level: src.class_level, board: src.board });
+    const gate = { think: completeThinking, model: getConfiguredModelId() };
+    const outcomes = await Promise.all(wellFormed.map((c) => gateQuestion(gate, label, {
+      subject: src.subject,
+      chapter: src.chapter,
+      topic: src.topic_name,
+      form: formOf(c.question, c.options),
+      question: c.question,
+      options: c.options,
+      correctIndex: c.correct_index,
+      scope,
+    })));
+    const accepted = wellFormed.flatMap((c, i) => {
+      const o = outcomes[i];
+      if (o.kept) return [{ ...c, review: o.review, at: i }];
+      skipped.push(`${o.stage}: ${o.reason}`);
+      return [];
+    });
+
+    /** The gate's record: every variant it saw, kept or refused, and the bank row a kept one became. */
+    const record = async (storedAs: Map<number, string>) => {
+      if (outcomes.length === 0) return;
+      const { error } = await admin.from("question_gate_outcomes").insert(outcomes.map((o, i) => ({
+        writer: src.source_question_id ? "recovery_variant" : "upload_variant",
+        ref: src.source_question_id ?? src.source_upload_question_id,
+        exam_id: src.exam_id,
+        subject: src.subject,
+        chapter_id: src.chapter_id,
+        topic_id: src.topic_id,
+        form: formOf(wellFormed[i].question, wellFormed[i].options),
+        question: wellFormed[i].question,
+        options: wellFormed[i].options,
+        correct_index: wellFormed[i].correct_index,
+        stage: o.kept ? "kept" : o.stage,
+        reason: o.kept ? null : o.reason,
+        failed: o.kept ? [] : o.failed,
+        review: o.review,
+        question_id: storedAs.get(i) ?? null,
+      })));
+      if (error) console.error("ai-recovery-variants: gate record failed:", error.message);
+    };
 
     const usage = {
       model_id: ai.model_id ?? null,
@@ -602,9 +504,9 @@ Deno.serve(async (req) => {
       prompt_tokens: ai.usage?.prompt_tokens ?? null,
       completion_tokens: ai.usage?.completion_tokens ?? null,
       elapsed_ms: Date.now() - startedAt,
-      // Named separately so a run that spent on the check and stored nothing
+      // Named separately so a run that spent on the gate and stored nothing
       // reads as what it is, rather than as a generation that produced nothing.
-      answer_check: checkUsage,
+      gate: tallyGate(outcomes),
     };
 
     const provenance = {
@@ -613,6 +515,7 @@ Deno.serve(async (req) => {
     };
 
     if (dryRun) {
+      await record(new Map());
       return jsonResponse({
         dry_run: true,
         ...provenance,
@@ -627,6 +530,7 @@ Deno.serve(async (req) => {
     }
 
     if (accepted.length === 0) {
+      await record(new Map());
       return jsonResponse({
         ...provenance,
         tier,
@@ -636,7 +540,7 @@ Deno.serve(async (req) => {
         usage,
         well_formed: wellFormed.length,
         note: wellFormed.length > 0
-          ? "nothing was written — every well-formed variant failed the answer check (see skipped)"
+          ? "nothing was written — every well-formed variant failed the quality gate (see skipped)"
           : "nothing was written — a variant that cannot be generated is skipped, not faked (§4.2a)",
       });
     }
@@ -656,16 +560,21 @@ Deno.serve(async (req) => {
       correct_index: v.correct_index,
       explanation: v.explanation,
       source: "ai_recovery_variant",
+      quality_review: v.review,
     }));
 
     const { data: stored, error: storeErr } = await admin.rpc("store_generated_questions", {
       _questions: rows,
     });
 
-    if (storeErr) return jsonResponse({ error: `store failed: ${storeErr.message}`, retryable: true }, 500);
+    if (storeErr) {
+      await record(new Map());
+      return jsonResponse({ error: `store failed: ${storeErr.message}`, retryable: true }, 500);
+    }
 
     const result = stored as StoreResult;
     for (const s of result.skipped ?? []) skipped.push(`not stored: ${s.reason}`);
+    await record(new Map((result.inserted ?? []).map((r) => [accepted[r.index].at, r.id] as const)));
 
     return jsonResponse({
       ...provenance,

@@ -61,6 +61,7 @@
     "verify:caller-privileges": "node scripts/verify-caller-privileges.mjs",
     "lint:baseline": "node scripts/lint-baseline.mjs",
     "check:edge-drift": "node scripts/check-edge-drift.mjs",
+    "measure:question-gate": "node scripts/measure-question-gate.mjs",
     "check:edge-drift:update": "node scripts/check-edge-drift.mjs --update",
     "lint:baseline:update": "node scripts/lint-baseline.mjs --update",
     "db:strip-demo-tenants": "node scripts/strip-demo-tenants.mjs",

@@ -40,7 +40,7 @@ before B** — a mock creator built on a weak bank multiplies the weakness.
   the options, statement and case imports with missing data (KNOWN_ISSUES 112
   item 1, 114 item 1). A disputed list exists with no owner screen (113).
 
-**A1. The CUET pattern, derived — the owner has no CUET papers to give.**
+**A1. ~~The CUET pattern, derived — the owner has no CUET papers to give.~~ DONE — 5b888e51, approved by the owner 2026-10-09 as proposed: `docs/cuet-blueprint.md`.**
 Analyse the previous-year questions already in the bank (Practice has a PYQ
 mode) and the published syllabus to state, per subject: the share of each
 question type (direct MCQ, assertion–reason, statements, match the following,
@@ -48,7 +48,7 @@ sequence, case-based, numerical), how questions spread across chapters, and the
 difficulty mix. Write it down as each subject's **blueprint**, show it to the
 owner, and use nothing until it is approved. Feeds A2, B and C7.
 
-**A2. A quality gate on every AI-written question, before it reaches the bank.**
+**A2. ~~A quality gate on every AI-written question, before it reaches the bank.~~ DONE 2026-10-09 — KNOWN_ISSUES 118 (20261148000000, 20261149000000; measured with `node scripts/measure-question-gate.mjs`).**
 A separate review pass grades each draft against a written CBT rubric and
 refuses anything below the bar, recording why (`ai_practice_requests.drafts`
 already records what became of each draft):
@@ -67,7 +67,10 @@ measured over a batch in each subject.
 **A3. Audit the existing bank against the same rubric.** Every active CUET
 question, subject by subject: keep, repair (the report check's review already
 rewrites a faulty question in its form) or retire. Starts with the broken
-legacy match/statement/case imports and the disputed list.
+legacy match/statement/case imports and the disputed list. Also re-review,
+under rubric 2026-10-09.2, the AI questions stored on 2026-10-09 whose review
+is version "2026-10-09" (the reviewer then judged the syllabus from memory) and
+the 287 AI questions stored before the gate, which have no review at all.
 
 **A4. Quality measured from students' answers.** Per question: right-first-time
 rate, how often each wrong option is chosen, reports. Flag questions nearly
@@ -75,12 +78,17 @@ everyone gets right or wrong, and options nobody ever picks — they are not
 doing work. Feeds A3 continuously.
 
 **A5. The owner reads a sample before a subject's papers open** (B3): a page
-of drafted questions per subject, with the rubric marks beside each.
+of drafted questions per subject, with the rubric marks beside each. Since A2,
+`question_gate_outcomes` holds every drafted question — kept or refused — with
+its marks: the page reads it.
 
 **A6. Students' own questions** (custom uploads, screen capture): their quality
 is what the student brings; they stay private to that student and never enter
 the shared bank unless they pass the A2 gate. Check that the upload promotion
-path (variant generation from an upload, 20261068000000) holds to this.
+path (variant generation from an upload, 20261068000000) holds to this. Its
+probe, `scripts/measure-upload-promotion-12-5-real.mjs`, cannot run since
+20261096000000 (every upload question must have a chapter, so its no-chapter
+fixture is refused): rebuild it, with the A2 review on its items.
 
 **A7. Check the rights to the imported ebook sets.** The bank's sources read
 "PW CUET ebook …". Confirm the product may use them; if not, they are replaced
@@ -129,7 +137,10 @@ counts and review alone.
 
 **B6. Supply first:** Economics, English and Mathematics cannot have a paper
 until their banks are filled, through A2. Do not open their mocks on
-AI-written questions that have not passed the gate.
+AI-written questions that have not passed the gate. The writer exists since A2:
+`chapter-supply` writes gated questions for one chapter (drain secret); B6
+decides how many each chapter needs and schedules it. Current affairs is never
+written by AI (A1 decision 6) until a dated, sourced fact list exists.
 
 **B7. Plan counting — to be discussed with the owner last.** Today the free
 plan allows 1 mock in total and counts at start (`mock_test.start`).
@@ -186,4 +197,6 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
   59 errors that only the bundler's leniency lets run (KNOWN_ISSUES 117 item 3).
 - **E7. At the next deploy of each AI function:** it takes the
   `reasoningBudget.ts` change and the corrected headers, and the drift baseline
-  is lowered (KNOWN_ISSUES 117 items 1–2).
+  is lowered (KNOWN_ISSUES 117 items 1–2). Done 2026-10-09 for ai-practice,
+  ai-recovery-variants, question-reports and question-explanations (A2; baseline
+  34 → 25); the other AI functions still carry it.

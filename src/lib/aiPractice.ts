@@ -3,8 +3,9 @@
  * of what the student typed, and read back what they asked before.
  *
  * The function does the work (supabase/functions/ai-practice): the bank first,
- * then AI-written questions that pass an independent answer check. A request
- * that writes questions can take most of a minute.
+ * then AI-written questions that pass the quality gate (an independent answer
+ * check and a review against the rubric). A request that writes questions can
+ * take most of a minute.
  */
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/edgeFunction";

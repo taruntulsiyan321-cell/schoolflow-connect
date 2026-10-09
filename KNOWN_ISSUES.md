@@ -5241,3 +5241,55 @@ Kept on purpose, per 110: the school rulings in `thresholds.ts` and `bands.ts`.
 4. **Concept explain reads office facts for a student.** It calls `fetchEie` without `learningOnly`, so a school
    student's attendance and homework are read and `attendance_risk` enters the pack. Individual students have no
    such row; a school-era path.
+
+## 118. Every AI-written question passes a quality gate before the bank — BUILT and LIVE 2026-10-09 (20261148000000, 20261149000000); what is open
+
+**docs/TODO.md A2.** Until today an AI-written question needed only an answer check (solved again without its key).
+That proves the key fits the question, not that the question is good. Now every one passes a gate:
+
+* **The rubric** — `supabase/functions/_shared/questionRubric.ts`, the one written home. Rules decided with no model
+  (assertion–reason is never written — A1 decision 2; no "all/none of the above"; a right option far longer than
+  every other is a giveaway), six criteria a reasoning reviewer grades (one right answer, wrong options that tempt,
+  nothing missing or idle, the form done properly, inside the syllabus, worded like the paper) and the difficulty
+  definitions A1 decision 7 counts by. Current affairs are never written by AI (A1 decision 6).
+* **The gate** — `_shared/questionGate.ts`: rules, then an independent solve and the review, each on its own call;
+  any failed or unreadable call keeps nothing. Every writer uses it: AI Practice and the new background
+  `chapter-supply` through `_shared/questionWriter.ts`, recovery and upload variants (their old batched answer
+  check deleted), and the report check's rewrites (solved to their own key twice).
+* **The doors** — `store_generated_questions` and `apply_question_report_verdict`, the only two ways an AI question
+  reaches `question_bank` (measured), refuse one without a review that passed every criterion
+  (`_quality_review_passes`, its criteria pinned to the rubric by a test); the review is kept on
+  `question_bank.quality_review`. The store door checks it last, so its older refusals keep their reasons.
+  `question_gate_outcomes` records every draft gated, kept or refused, with why and the marks.
+* **The syllabus, given not remembered** (20261149000000). The first measured runs showed the reviewer judging
+  "syllabus" from memory, wrong both ways: Computerised Accounting refused as "not in CUET", a binary-operations
+  question passed. Each CUET chapter now carries its official NTA 2026 text (and, for English and the General
+  Test, what the paper asks, from the blueprint's evidence); the writer and the reviewer are given it.
+
+**Measured** (`node scripts/measure-question-gate.mjs --per-subject 2 --count 8`, final code, rubric 2026-10-09.2):
+102 drafts gated, 48 kept, and all 47 bank rows the runs created carry a passing review and a kept record.
+
+| Subject | Gated | Kept | Refused: rule / answer / review | Criteria failed most |
+|---|---:|---:|---|---|
+| Accountancy | 18 | 7 (39%) | 0 / 3 / 8 | distractors 9, complete 7, one answer 6 |
+| Business Studies | 20 | 15 (75%) | 1 / 0 / 4 | syllabus 3, one answer 3 |
+| Economics | 14 | 7 (50%) | 1 / 2 / 4 | distractors 6 |
+| English | 19 | 6 (32%) | 0 / 2 / 11 | distractors 8, register 7 |
+| General Test | 15 | 3 (20%) | 0 / 6 / 6 | distractors 10, one answer 8 |
+| Mathematics | 16 | 10 (63%) | 0 / 3 / 3 | one answer 5 |
+
+Before the syllabus text (same script, earlier code): 106 gated, 66 kept (62%). The reviewer is stricter with the
+facts in front of it. Writers also put "T1 Topic name" and "A) option" in replies: the reader now accepts the first
+and strips the second (a whole Economics run had been thrown away over the topic codes).
+
+**Open:**
+1. **The reviewer is one model (Qwen Flash, by ruling) and not perfect.** Read by hand, the final run still kept a
+   Maths statement set calling "the inverse of a diagonal matrix is always diagonal" true (it ignores the singular
+   case). A3's audit and A5's owner sample are the human check on what it keeps.
+2. **General Test and English keep rates are low** (20%, 32%): the writer, not the gate, is the weak half there —
+   puzzles with no single answer, passages with one question. B6's supply will need more drafts per kept question.
+3. **Two rows stored by the first runs were retired** (labelled options; binary operations), unanswered. The other
+   AI questions stored today before the syllabus text have rubric "2026-10-09"; A3 re-reviews them under
+   "2026-10-09.2" with the 287 stored before the gate, which have no review.
+4. **`scripts/measure-upload-promotion-12-5-real.mjs` cannot run** since 20261096000000 (an upload question must have
+   a chapter, so its no-chapter fixture is refused) — found here, rebuilt in A6.

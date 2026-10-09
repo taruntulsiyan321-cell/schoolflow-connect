@@ -3713,20 +3713,26 @@ export type Database = {
         Row: {
           chapter_id: string
           exam_id: string
+          paper_asks: string | null
           sequence: number
           stream: string
+          syllabus_text: string | null
         }
         Insert: {
           chapter_id: string
           exam_id: string
+          paper_asks?: string | null
           sequence: number
           stream: string
+          syllabus_text?: string | null
         }
         Update: {
           chapter_id?: string
           exam_id?: string
+          paper_asks?: string | null
           sequence?: number
           stream?: string
+          syllabus_text?: string | null
         }
         Relationships: [
           {
@@ -6341,6 +6347,7 @@ export type Database = {
           is_active: boolean
           is_approved: boolean
           options: Json | null
+          quality_review: Json | null
           question: string
           question_format: string | null
           replaced_by_question_id: string | null
@@ -6379,6 +6386,7 @@ export type Database = {
           is_active?: boolean
           is_approved?: boolean
           options?: Json | null
+          quality_review?: Json | null
           question: string
           question_format?: string | null
           replaced_by_question_id?: string | null
@@ -6417,6 +6425,7 @@ export type Database = {
           is_active?: boolean
           is_approved?: boolean
           options?: Json | null
+          quality_review?: Json | null
           question?: string
           question_format?: string | null
           replaced_by_question_id?: string | null
@@ -6487,6 +6496,102 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "topics"
             referencedColumns: ["id", "chapter_id"]
+          },
+        ]
+      }
+      question_gate_outcomes: {
+        Row: {
+          chapter_id: string | null
+          correct_index: number
+          created_at: string
+          exam_id: string | null
+          failed: string[]
+          form: string
+          id: string
+          options: Json
+          question: string
+          question_id: string | null
+          reason: string | null
+          ref: string | null
+          review: Json | null
+          stage: string
+          subject: string | null
+          topic_id: string | null
+          writer: string
+        }
+        Insert: {
+          chapter_id?: string | null
+          correct_index: number
+          created_at?: string
+          exam_id?: string | null
+          failed?: string[]
+          form: string
+          id?: string
+          options: Json
+          question: string
+          question_id?: string | null
+          reason?: string | null
+          ref?: string | null
+          review?: Json | null
+          stage: string
+          subject?: string | null
+          topic_id?: string | null
+          writer: string
+        }
+        Update: {
+          chapter_id?: string | null
+          correct_index?: number
+          created_at?: string
+          exam_id?: string | null
+          failed?: string[]
+          form?: string
+          id?: string
+          options?: Json
+          question?: string
+          question_id?: string | null
+          reason?: string | null
+          ref?: string | null
+          review?: Json | null
+          stage?: string
+          subject?: string | null
+          topic_id?: string | null
+          writer?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_gate_outcomes_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_gate_outcomes_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "competitive_exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_gate_outcomes_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_gate_outcomes_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank_student"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_gate_outcomes_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -10978,6 +11083,8 @@ export type Database = {
         Args: { _uid: string }
         Returns: undefined
       }
+      _quality_review_passes: { Args: { _review: Json }; Returns: boolean }
+      _question_rubric_ids: { Args: never; Returns: string[] }
       _question_text_key: { Args: { _text: string }; Returns: string }
       _rebuild_revision_queue: {
         Args: { _student_id: string; _uid: string }

@@ -15,8 +15,9 @@
  *   3. A report that the question itself is faulty is reviewed twice, once
  *      with the student's note and once without it. Only when both reviews
  *      call it unusable is it repaired: rewritten when a rewrite passes the
- *      written-question checks and is solved to its own key twice, otherwise
- *      withdrawn. The note is a pointer, never an instruction: a note alone
+ *      written-question checks and the quality gate (questionGate.ts: solved
+ *      to its own key twice, passed on every criterion of the rubric),
+ *      otherwise withdrawn. The note is a pointer, never an instruction: a note alone
  *      cannot retire a question.
  *   4. Everything else is unresolved, and joins the disputed list.
  *
@@ -27,6 +28,7 @@ import { readWrittenQuestion, type WrittenQuestion } from "./aiPractice.ts";
 import type { Solved } from "./answerCheck.ts";
 import { indexOfLetter, letterOf } from "./explanationFormat.ts";
 import { FORM_JSON_GUIDE } from "./questionForms.ts";
+import { rubricLines, type ReviewRecord } from "./questionRubric.ts";
 
 export type ReportReason = "wrong_answer" | "question_error" | "explanation_error" | "other";
 export type ClaimedReport = { id: string; reason: ReportReason; claimed_index: number | null; note: string | null };
@@ -35,6 +37,8 @@ export type ClaimedReport = { id: string; reason: ReportReason; claimed_index: n
 export const SOLVES = 3;
 /** Temperatures of those solves: one settled reading, two that may wander. */
 export const SOLVE_TEMPERATURES = [0, 0.4, 0.7] as const;
+/** A rewrite's solves at the quality gate: it must reach its own key at both. */
+export const REWRITE_SOLVE_TEMPERATURES = [0, 0.4] as const;
 
 // ── 1. The votes ────────────────────────────────────────────────────────────
 
@@ -118,7 +122,10 @@ export function reviewSystemPrompt(examLabel: string): string {
     "- exactly one option is correct.",
     "Small matters of wording do not make a question unusable; only a fault that stops a student answering it correctly does.",
     "",
-    "If it is unusable, rewrite it so that it is usable: the same topic, idea and level, exactly 4 options and exactly one correct answer, with every number a calculation needs. Keep its form: a question meant as assertion–reason, statement-based, match-the-following, case-based or sequence is rewritten as one, laid out properly. Give the working (at least 3 sentences, every step) and, for EACH wrong option, one line on exactly why it is wrong. If it cannot be repaired, give no rewrite.",
+    "If it is unusable, rewrite it so that it is usable: the same topic, idea and level, exactly 4 options and exactly one correct answer, with every number a calculation needs. Keep its form: a question meant as statement-based, match-the-following, case-based or sequence is rewritten as one, laid out properly — but an assertion–reason question is rewritten as a statement-based one on its two statements, because the real paper does not set assertion–reason. Give the working (at least 3 sentences, every step) and, for EACH wrong option, one line on exactly why it is wrong. If it cannot be repaired, give no rewrite.",
+    "",
+    "A rewrite is used only if it passes this rubric on every criterion:",
+    rubricLines(),
     "",
     FORM_JSON_GUIDE,
     "",
@@ -178,6 +185,8 @@ export type Verdict = {
   question?: string;
   options?: string[];
   note?: string;
+  /** A rewrite's passing review (questionGate) — the database refuses a rewrite without one. */
+  quality_review?: ReviewRecord;
 };
 
 const day = (now: Date) => now.toISOString().slice(0, 10);
@@ -231,7 +240,13 @@ export function correctKeyVerdict(
   };
 }
 
-export function rewriteVerdict(reports: ReadonlyArray<ClaimedReport>, problem: string, rewrite: WrittenQuestion, now: Date): Verdict {
+export function rewriteVerdict(
+  reports: ReadonlyArray<ClaimedReport>,
+  problem: string,
+  rewrite: WrittenQuestion,
+  review: ReviewRecord,
+  now: Date,
+): Verdict {
   return {
     kind: "rewrite",
     outcome: `The question had a fault: ${problem} It has been rewritten, and answers to the old version no longer count against anyone.`,
@@ -241,6 +256,7 @@ export function rewriteVerdict(reports: ReadonlyArray<ClaimedReport>, problem: s
     correct_index: rewrite.correctIndex,
     explanation: rewrite.explanation,
     note: `Report check ${day(now)}: ${problem} Rewritten.`,
+    quality_review: review,
   };
 }
 

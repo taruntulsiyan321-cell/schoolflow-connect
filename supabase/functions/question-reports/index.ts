@@ -10,7 +10,9 @@
  * without its key; a key changes only when two solves agree on another option
  * AND a fourth call, shown both options, chooses it; a question reported as
  * faulty is repaired only when two reviews — one with the student's note, one
- * without — both find it unusable. Whatever is decided goes to
+ * without — both find it unusable, and a rewrite replaces it only when it
+ * passes the quality gate every AI-written question passes (TODO A2,
+ * _shared/questionGate.ts; recorded in question_gate_outcomes). Whatever is decided goes to
  * apply_question_report_verdict, which makes it true in one transaction and
  * tells each reporter.
  *
@@ -20,7 +22,10 @@
  * Background job endpoint: x-variant-drain, the same secret the other drains use.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { completeWithQwen } from "../_shared/modelRouter.ts";
+import { completeWithQwen, getConfiguredModelId } from "../_shared/modelRouter.ts";
+import { gateQuestion, type GateOutcome } from "../_shared/questionGate.ts";
+import type { ChapterScope } from "../_shared/questionRubric.ts";
+import { loadChapterScope } from "../_shared/questionWriterDb.ts";
 import { completeThinking } from "../_shared/thinkingCompletion.ts";
 import { describeSolves, examLabel, SOLVE_THINKING, SOLVE_TOKENS, solveOnce, writeExplanation } from "../_shared/answerCheck.ts";
 import { readModelJson } from "../_shared/aiPractice.ts";
@@ -34,6 +39,7 @@ import {
   keepVerdict,
   readDecision,
   readReview,
+  REWRITE_SOLVE_TEMPERATURES,
   type Review,
   reviewSystemPrompt,
   reviewUserPrompt,
@@ -44,6 +50,7 @@ import {
   type Verdict,
   withdrawVerdict,
 } from "../_shared/questionReports.ts";
+import type { WrittenQuestion } from "../_shared/aiPractice.ts";
 import { letterOf } from "../_shared/explanationFormat.ts";
 
 const corsHeaders = {
@@ -91,7 +98,10 @@ async function review(label: string, shown: Parameters<typeof reviewUserPrompt>[
   }
 }
 
-async function settle(row: Claimed, now: Date): Promise<Verdict> {
+/** A rewrite the gate saw, for the gate's record once the verdict is applied. */
+type Gated = { rewrite: WrittenQuestion; outcome: GateOutcome };
+
+async function settle(row: Claimed, now: Date, gated: Gated[], scope: ChapterScope | null): Promise<Verdict> {
   const options = Array.isArray(row.options) ? row.options.map((o) => String(o ?? "")) : [];
   const key = row.correct_index;
   const label = examLabel(row);
@@ -122,11 +132,15 @@ async function settle(row: Claimed, now: Date): Promise<Verdict> {
     const problem = found[0].problem;
     const rewrite = found.map((f) => f.rewrite).find((w) => w != null) ?? null;
     if (!rewrite) return withdrawVerdict(row.reports, problem, "no rewrite passed the checks", now);
-    // The rewrite must be solved to its own key, twice.
-    const check = await Promise.all([0, 0.4].map((t) =>
-      solveOnce(completeThinking, label, { question: rewrite.question, options: rewrite.options }, t)));
-    if (check.every((s) => s.index === rewrite.correctIndex)) return rewriteVerdict(row.reports, problem, rewrite, now);
-    return withdrawVerdict(row.reports, problem, `the rewrite was solved as ${describeSolves(check)}, not its key`, now);
+    // The rewrite passes the quality gate, as every AI-written question does —
+    // solved to its own key twice, and passed on every criterion of the rubric.
+    const outcome = await gateQuestion({ think: completeThinking, model: getConfiguredModelId() }, label, {
+      subject: row.subject, chapter: row.chapter, topic: row.topic,
+      form: rewrite.form, question: rewrite.question, options: rewrite.options, correctIndex: rewrite.correctIndex, scope,
+    }, { solveTemperatures: REWRITE_SOLVE_TEMPERATURES });
+    gated.push({ rewrite, outcome });
+    if (outcome.kept) return rewriteVerdict(row.reports, problem, rewrite, outcome.review, now);
+    return withdrawVerdict(row.reports, problem, `the rewrite failed the quality gate — ${outcome.stage}: ${outcome.reason}`, now);
   }
 
   if (votes.kind === "stands") {
@@ -191,13 +205,37 @@ Deno.serve(async (req) => {
   const results: Array<{ question_id: string; kind?: string; error?: string }> = [];
   for (const row of rows) {
     try {
-      const verdict = await settle(row, new Date());
+      const gated: Gated[] = [];
+      // The chapter's official syllabus, which a rewrite's review is judged by (20261149000000).
+      const { data: at } = await admin.from("question_bank").select("exam_id, chapter_id").eq("id", row.question_id).maybeSingle();
+      const where = at as { exam_id: string | null; chapter_id: string | null } | null;
+      const scope = await loadChapterScope(admin, where?.exam_id ?? null, where?.chapter_id ?? null);
+      const verdict = await settle(row, new Date(), gated, scope);
       const { data: applied, error: applyError } = await admin.rpc("apply_question_report_verdict", {
         _question_id: row.question_id,
         _verdict: verdict,
       });
       if (applyError) throw new Error(applyError.message);
-      results.push({ question_id: row.question_id, kind: (applied as { kind?: string } | null)?.kind });
+      const done = applied as { kind?: string; replacement?: string | null } | null;
+      if (gated.length) {
+        // The gate's record: the rewrite it saw, and the question it became.
+        const { error: recErr } = await admin.from("question_gate_outcomes").insert(gated.map(({ rewrite, outcome }) => ({
+          writer: "report_rewrite",
+          ref: row.question_id,
+          subject: row.subject,
+          form: rewrite.form,
+          question: rewrite.question,
+          options: rewrite.options,
+          correct_index: rewrite.correctIndex,
+          stage: outcome.kept ? "kept" : outcome.stage,
+          reason: outcome.kept ? null : outcome.reason,
+          failed: outcome.kept ? [] : outcome.failed,
+          review: outcome.review,
+          question_id: outcome.kept && done?.kind === "rewrite" ? done.replacement ?? null : null,
+        })));
+        if (recErr) console.error("question-reports: gate record failed:", recErr.message);
+      }
+      results.push({ question_id: row.question_id, kind: done?.kind });
     } catch (e) {
       // The reports stay 'checking' and come back to the queue in 15 minutes.
       console.error("question-reports:", row.question_id, e);

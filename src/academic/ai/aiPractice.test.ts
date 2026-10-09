@@ -12,8 +12,10 @@ import {
   readWrittenQuestion,
   relevantFromBank,
   writePlan,
+  writeSystemPrompt,
   writeUserPrompt,
 } from "../../../supabase/functions/_shared/aiPractice.ts";
+import { DIFFICULTY_DEFINITIONS, RUBRIC } from "../../../supabase/functions/_shared/questionRubric.ts";
 import type { SyllabusChapter } from "../../../supabase/functions/_shared/syllabusTag.ts";
 
 /**
@@ -102,6 +104,21 @@ describe("a written question is kept only when it is clean", () => {
     ["a one-line working", { working: "It is 10% of A's capital." }, /working/],
     ["a wrong option with no reason", { wrong: good.wrong.slice(0, 2) }, /option D/],
   ];
+  it.each(["T2", "T2 Interest on Capital", "t2: interest on capital", "Interest on Capital"])("its topic read from %s", (topic) => {
+    const r = readWrittenQuestion({ ...good, topic }, TOPICS, null);
+    expect(r).toMatchObject({ ok: true, question: { topicId: "t-int" } });
+  });
+
+  it("options the writer lettered itself are stored without its letters", () => {
+    const r = readWrittenQuestion({ ...good, options: good.options.map((o, i) => `${"ABCD"[i]}) ${o}`) }, TOPICS, null);
+    expect(r).toMatchObject({ ok: true, question: { options: good.options } });
+  });
+
+  it("a topic it cannot read is refused, saying what was sent", () => {
+    expect(readWrittenQuestion({ ...good, topic: "Goodwill" }, TOPICS, null)).toEqual({ ok: false, reason: 'no topic of the chapter ("Goodwill")' });
+    expect(readWrittenQuestion({ ...good, topic: "T22" }, TOPICS, null)).toMatchObject({ ok: false });
+  });
+
   for (const [what, change, why] of bad) {
     it(`refused: ${what}`, () => {
       const r = readWrittenQuestion({ ...good, ...change }, TOPICS, null);
@@ -204,5 +221,20 @@ describe("what the writer is told", () => {
     expect(text).toContain("Write 5 questions, all hard.");
     expect(text).toContain("as the real exam mixes them");
     expect(text).toContain("- An existing question?");
+  });
+
+  it("is told the rubric every question is reviewed against, and the rubric's difficulties", () => {
+    const system = writeSystemPrompt("CUET (UG)");
+    for (const c of RUBRIC) expect(system).toContain(c.test);
+    expect(system).toContain(DIFFICULTY_DEFINITIONS.hard);
+  });
+
+  it("is never asked for assertion–reason, which the real paper does not set", () => {
+    const mix = writeUserPrompt({
+      subject: "Accountancy", chapter: "Accounting for Partnership", topics: TOPICS, topicId: null,
+      focus: "partnership deed", difficulty: null, form: null, count: 5, examples: [], avoid: [],
+    });
+    expect(mix).toContain("statement-based, match-the-following, case-based and sequence");
+    expect(mix).not.toMatch(/assertion/i);
   });
 });
