@@ -40,8 +40,23 @@ describe("the whole syllabus", () => {
     expect(rows[0]).toHaveTextContent("Ratio Analysis15 answers · 1 of 2 topics met");
     expect(rows[1]).toHaveTextContent("Admission of a PartnerNot practised");
     expect(screen.getByTestId("syllabus-coverage").textContent).not.toMatch(/%/);
-    expect(within(rows[1]).getByRole("link", { name: "Practise" }))
+    // Never practised: Start, one tap into its session (C4). Met: Practise.
+    expect(within(rows[1]).getByRole("link", { name: "Start" }))
       .toHaveAttribute("href", "/student/practice?subject=Accountancy&chapter=Admission+of+a+Partner");
+    expect(within(rows[0]).getByRole("link", { name: "Practise" }))
+      .toHaveAttribute("href", "/student/practice?subject=Accountancy&chapter=Ratio+Analysis");
+    expect(within(rows[0]).queryByRole("link", { name: "Start" })).toBeNull();
+  });
+
+  it("names each subject's next chapter to start, and none where every chapter is met (C4)", () => {
+    show(<SyllabusCoverage map={MAP} topicLock={null} />);
+    const [acc, eco] = screen.getAllByTestId("syllabus-subject");
+    const next = within(acc).getByTestId("syllabus-next");
+    expect(next).toHaveTextContent("Next not practised: Admission of a Partner");
+    expect(within(next).getByRole("link", { name: "Start it" }))
+      .toHaveAttribute("href", "/student/practice?subject=Accountancy&chapter=Admission+of+a+Partner");
+    // Economics' one chapter is met.
+    expect(within(eco).queryByTestId("syllabus-next")).toBeNull();
   });
 
   it("opens a chapter to its topics, each met or not", () => {

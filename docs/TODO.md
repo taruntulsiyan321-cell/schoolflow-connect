@@ -166,7 +166,7 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
   KNOWN_ISSUES 122).** With +5/−1 a guess pays above
   one right in six. The guess tap (step 3b) gives each student their own rate;
   Analysis says "your guesses pay" or "leave them".
-- **C4. Start a chapter never practised** — one tap from the syllabus map
+- **~~C4. Start a chapter never practised~~ — DONE 2026-10-09 (KNOWN_ISSUES 123)** — one tap from the syllabus map
   (Subjects & Chapters → Your whole syllabus) to a starter session.
 - **C5. Mistake types drive practice** — "Calculation error" → numerical
   drills; "Misread the question" → statement and assertion–reason questions.

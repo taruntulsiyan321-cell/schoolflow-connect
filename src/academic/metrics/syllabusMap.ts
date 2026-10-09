@@ -25,18 +25,28 @@ export type SyllabusMap = {
 
 const pct = (n: number, d: number) => Math.round((n / d) * 100);
 
-export type SubjectOnMap = { subject: string; chapters: MapChapter[]; practised: number };
+export type SubjectOnMap = {
+  subject: string;
+  chapters: MapChapter[];
+  practised: number;
+  /** The first chapter in syllabus order never practised — where to start next (C4). Null when all are met. */
+  next: MapChapter | null;
+};
 
 /** The syllabus by subject, each subject's chapters in syllabus order. */
 export function subjectsOnMap(map: SyllabusMap): SubjectOnMap[] {
   const bySubject = new Map<string, MapChapter[]>();
   for (const c of map.chapters) bySubject.set(c.subject, [...(bySubject.get(c.subject) ?? []), c]);
   return [...bySubject]
-    .map(([subject, chapters]) => ({
-      subject,
-      chapters: [...chapters].sort((x, y) => x.sequence - y.sequence || x.chapter.localeCompare(y.chapter)),
-      practised: chapters.filter((c) => c.answered > 0).length,
-    }))
+    .map(([subject, list]) => {
+      const chapters = [...list].sort((x, y) => x.sequence - y.sequence || x.chapter.localeCompare(y.chapter));
+      return {
+        subject,
+        chapters,
+        practised: chapters.filter((c) => c.answered > 0).length,
+        next: chapters.find((c) => c.answered === 0) ?? null,
+      };
+    })
     .sort((x, y) => x.subject.localeCompare(y.subject));
 }
 

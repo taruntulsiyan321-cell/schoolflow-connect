@@ -25,6 +25,20 @@ describe("the syllabus as a map", () => {
     ]);
     expect(coverage(m)).toEqual({ chapters: 3, practised: 2, judged: 1 });
   });
+
+  it("names, per subject, the first chapter in syllabus order never practised (C4)", () => {
+    const m = map([
+      ch({ chapterId: "a3", chapter: "Cash Flow", sequence: 3 }),
+      ch({ chapterId: "a1", chapter: "Partnership", sequence: 1, answered: 4 }),
+      ch({ chapterId: "a2", chapter: "Goodwill", sequence: 2 }),
+      ch({ chapterId: "e1", chapter: "Money", subject: "Economics", answered: 1 }),
+    ]);
+    const [acc, eco] = subjectsOnMap(m);
+    // a1 is met; a2 comes before a3 in the syllabus.
+    expect(acc.next?.chapterId).toBe("a2");
+    // Every chapter met: nothing to start.
+    expect(eco.next).toBeNull();
+  });
 });
 
 describe("slipping topics", () => {

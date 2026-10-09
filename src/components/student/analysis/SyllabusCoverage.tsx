@@ -11,6 +11,10 @@ import { cn } from "@/lib/utils";
  * which of it they have met. COVERAGE ONLY: how many answers, or "Not
  * practised". A chapter's accuracy is said once on this tab, in "Chapter by
  * chapter"; a second figure here, counted another way, could disagree with it.
+ *
+ * A chapter never practised is one tap from its first session (C4): its row
+ * says Start rather than Practise, and each subject names the next one to
+ * start, in syllabus order.
  */
 export function SyllabusCoverage({ map, topicLock }: { map: SyllabusMap; topicLock: ReactNode }) {
   const cov = coverage(map);
@@ -29,6 +33,16 @@ export function SyllabusCoverage({ map, topicLock }: { map: SyllabusMap; topicLo
             {displaySubject(s.subject) || s.subject}
             <span className="text-xs font-normal text-muted-foreground">{s.practised} of {s.chapters.length} practised</span>
           </h4>
+          {s.next && (
+            <p className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground" data-testid="syllabus-next">
+              <span>
+                Next not practised: <span className="font-semibold text-foreground">{displayChapter(s.next.chapter) || s.next.chapter}</span>
+              </span>
+              <Link to={practiseHref(s.next)} className="rounded-lg bg-primary px-2.5 py-1 font-semibold text-primary-foreground hover:bg-primary/90">
+                Start it
+              </Link>
+            </p>
+          )}
           <ul className="space-y-1.5">
             {s.chapters.map((c) => (
               <ChapterRow key={c.chapterId} chapter={c} topics={topicsOf.get(c.chapterId) ?? []} locked={map.topicsLocked} topicLock={topicLock} />
@@ -42,10 +56,13 @@ export function SyllabusCoverage({ map, topicLock }: { map: SyllabusMap; topicLo
 
 const answersText = (answered: number) => (answered === 0 ? "Not practised" : pluralise(answered, "answer"));
 
+/** A chapter's practice session, started by the link (Practice reads ?subject&chapter). */
+const practiseHref = (c: Pick<MapChapter, "subject" | "chapter">) =>
+  `/student/practice?${new URLSearchParams({ subject: c.subject, chapter: c.chapter })}`;
+
 function ChapterRow({ chapter: c, topics, locked, topicLock }: { chapter: MapChapter; topics: MapTopic[]; locked: boolean; topicLock: ReactNode }) {
   const [open, setOpen] = useState(false);
   const metTopics = topics.filter((t) => t.answered > 0).length;
-  const practiseHref = `/student/practice?${new URLSearchParams({ subject: c.subject, chapter: c.chapter })}`;
   return (
     <li className="rounded-xl border border-border/70 bg-surface/60" data-testid="syllabus-chapter">
       <div className="flex items-center gap-2 p-2.5">
@@ -68,9 +85,15 @@ function ChapterRow({ chapter: c, topics, locked, topicLock }: { chapter: MapCha
           </span>
           <ChevronDown aria-hidden className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />
         </button>
-        <Link to={practiseHref} className="shrink-0 rounded-lg px-2 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10">
-          Practise
-        </Link>
+        {c.answered === 0 ? (
+          <Link to={practiseHref(c)} className="shrink-0 rounded-lg bg-primary/15 px-2 py-1.5 text-xs font-semibold text-foreground hover:bg-primary/25">
+            Start
+          </Link>
+        ) : (
+          <Link to={practiseHref(c)} className="shrink-0 rounded-lg px-2 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10">
+            Practise
+          </Link>
+        )}
       </div>
       {open && (
         <div className="border-t border-border/60 px-3 py-2.5">

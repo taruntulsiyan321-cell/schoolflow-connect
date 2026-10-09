@@ -5429,3 +5429,19 @@ leave it blank. It states a fact and a next step, not praise (§10.8).
    before today. The card appears once a student uses the tap, and a verdict after 5 guesses.
 2. **Practice only**, as Analysis is (rule 11). A mock paper's guesses are read on its own result, not counted
    here.
+
+## 123. A chapter never practised is one tap from its first session — BUILT 2026-10-09; what is open
+
+**docs/TODO.md C4.** On Analysis → Subjects & Chapters → Your whole syllabus, a chapter never practised now says
+**Start** rather than Practise. Each subject names its next chapter to start: the first in syllabus order not yet
+practised (`subjectsOnMap(...).next`, the one place the order is decided). Both open that chapter's practice session
+in one tap; Practice starts a session from `?subject&chapter`.
+
+**Measured:** 4 mutants are killed (next is the last chapter, next is any chapter, Start never shown, next line
+hidden).
+
+**Open:**
+1. **The "starter session" is the ordinary chapter session**: 20 questions, mixed difficulty. A gentler first
+   session (fewer questions, easiest first) was not built. The bank's difficulty filter is strict, so an easy-only
+   session on a thin chapter could hold a few questions or none. That shape is the owner's to rule on before it is
+   built.

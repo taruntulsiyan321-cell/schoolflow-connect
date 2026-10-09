@@ -207,7 +207,9 @@ describe("Summary: what practice's analysis says of a paper", () => {
     state.contextFails = true;
     draw();
     await screen.findByTestId("summary-score");
-    expect(state.contextAsked).toEqual(["att"]);
+    // The context is asked for by an effect after the result is drawn; under a
+    // loaded test run that lands a moment later, so it is waited for.
+    await waitFor(() => expect(state.contextAsked).toEqual(["att"]));
     await waitFor(() => expect(screen.queryByTestId("summary-marks")).toBeNull());
     expect(screen.queryByTestId("summary-comparison")).toBeNull();
     // The server's score does not depend on it.
