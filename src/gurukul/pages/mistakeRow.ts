@@ -11,7 +11,11 @@ export interface Mistake {
   /** Raw DB chapter/concept for recovery assign (not display-humanized). */
   chapterRaw: string | null;
   conceptRaw: string | null;
-  source: string; sourceLabel: string; date: string; frequency: number;
+  source: string; sourceLabel: string; date: string;
+  /** Times answered wrong. 0 for a row that is here only for lucky guesses. */
+  frequency: number;
+  /** Times answered right only by a guess (C2, 20261152000000). */
+  luckyGuesses: number;
   aiExplanation: string;
   bookmarked: boolean; resolved: boolean; qType: string; sortDate: string;
   questionId: string | null;
@@ -46,6 +50,8 @@ export type MistakeRow = {
   assessment_type: string | null;
   last_wrong_at: string;
   times_wrong: number;
+  /** 20261152000000; absent from a reader that does not select it. */
+  lucky_guesses?: number;
   explanation: string | null;
   status: "open" | "cleared";
   question_id?: string | null;
@@ -152,6 +158,7 @@ export function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     sourceLabel: sourceLabel(row.source),
     date: formatMistakeDate(row.last_wrong_at),
     frequency: row.times_wrong ?? 1,
+    luckyGuesses: row.lucky_guesses ?? 0,
     aiExplanation: row.explanation ?? "",
     bookmarked,
     resolved: row.status === "cleared",

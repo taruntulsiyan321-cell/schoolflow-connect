@@ -5373,3 +5373,35 @@ offers no praise.
 2. **4,812 attempts have no bank row and are read from the text they kept.** One made before 20261141000000 laid out
    its form keeps its old layout, so an old match question whose lists sat in its options reads as direct. Only the
    bank rows were re-laid.
+
+## 121. A lucky guess goes to the Mistake Book — BUILT and LIVE 2026-10-09 (20261152000000); what is open
+
+**docs/TODO.md C2.** A right answer marked with "I'm guessing" is not knowledge. Until now it never reached recovery
+or revision, because both are fed by open Mistake Book rows and only a wrong answer opened one. It now does, in
+practice (`question_attempts.confidence`) and on a mock paper (`mock_answers.guessed`):
+
+* `student_mistakes.lucky_guesses` counts the times a question was right only by a guess. It is not added to
+  `times_wrong`, so recovery and revision, which order by `times_wrong`, still take real wrong answers first. A row
+  must have a reason: at least one wrong answer or one lucky guess (CHECK).
+* `_marked_as_guess(confidence)` is the database's one reading of the tap. A test holds it to `MARKED_AS_GUESS`.
+* `rpc_record_concept_mistake(…, _lucky_guess)` opens or reopens the row like a wrong answer. It does not count the
+  guess against mastery again, because the attempt already counted it as right.
+* `rpc_record_question_attempt` and `_mock_grade` send a right answer marked as a guess down the wrong answer's
+  path. A recovery session still only bumps an existing row, and a variant still belongs to its original.
+* The Mistake Book card says "Right by a guess" (×N) and shows the answer as "right, by a guess", never under the red
+  "Your Answer".
+* The guesses card on a session's or a paper's result says so: "The 2 right by a guess are in your Mistake Book, so
+  recovery and revision will ask them again."
+
+**Measured:**
+* The migration's proof, as an exam account, covers five cases:
+  * right and guessed: a row with 0 wrong and 1 lucky guess;
+  * right with the tap unused, and right with no tap: no row;
+  * the same question later answered wrong: the same row, now 1 wrong and 1 lucky guess;
+  * mastery: each answer counted once;
+  * a mock paper: the guessed right answer opens a row, the unguessed one does not.
+* 6 mutants are refused, and the round trip (migration, rollback, migration) passes.
+* 6 client mutants are killed.
+* No lucky guess from before today exists to back-fill: 2 tapped answers in all, neither right.
+
+**Open:** nothing found.

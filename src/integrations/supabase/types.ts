@@ -8774,6 +8774,7 @@ export type Database = {
           explanation: string | null
           id: string
           last_wrong_at: string
+          lucky_guesses: number
           options: Json | null
           question_id: string | null
           question_text: string
@@ -8804,6 +8805,7 @@ export type Database = {
           explanation?: string | null
           id?: string
           last_wrong_at?: string
+          lucky_guesses?: number
           options?: Json | null
           question_id?: string | null
           question_text: string
@@ -8834,6 +8836,7 @@ export type Database = {
           explanation?: string | null
           id?: string
           last_wrong_at?: string
+          lucky_guesses?: number
           options?: Json | null
           question_id?: string | null
           question_text?: string
@@ -11095,6 +11098,7 @@ export type Database = {
         Returns: string
       }
       _humanize_template_type: { Args: { _t: string }; Returns: string }
+      _marked_as_guess: { Args: { _confidence: number }; Returns: boolean }
       _maybe_finish_battle: { Args: { _battle_id: string }; Returns: undefined }
       _mock_build: {
         Args: {
@@ -12849,6 +12853,7 @@ export type Database = {
           _concept?: string
           _correct_answer?: Json
           _explanation?: string
+          _lucky_guess?: boolean
           _options?: Json
           _question_id?: string
           _question_text?: string

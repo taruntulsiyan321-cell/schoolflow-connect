@@ -178,6 +178,9 @@ describe("Summary: what practice's analysis says of a paper", () => {
       .toHaveTextContent("1 answer marked as a guess: 1 right, 0 wrong, which came to +4 marks on the real paper"));
     const g = screen.getByTestId("summary-guesses");
     expect(within(g).getByRole("button", { name: "Lucky guess: 1" })).toBeInTheDocument();
+    // C2: and says where that question went.
+    expect(within(g).getByTestId("summary-lucky-to-book"))
+      .toHaveTextContent("The one right by a guess is in your Mistake Book, so recovery and revision will ask it again.");
   });
 
   it("compares with the last paper of the same kind", async () => {

@@ -241,10 +241,18 @@ describe("Guesses: the \"I'm guessing\" tap", () => {
     expect(labels.slice(-3)).toEqual(["Lucky guess (1)", "Guessed wrong (1)", "Wrong, not a guess (2)"]);
   });
 
+  it("says the right guesses are in the Mistake Book (C2), and only when there are any", async () => {
+    show(tapped([1, 2, 8]));
+    expect(await screen.findByTestId("summary-lucky-to-book"))
+      .toHaveTextContent("The 2 right by a guess are in your Mistake Book, so recovery and revision will ask them again.");
+  });
+
   it("one mark is a mark: a single wrong guess came to −1 mark", async () => {
     show(tapped([8]));
     expect(await screen.findByTestId("summary-guesses"))
       .toHaveTextContent("1 answer marked as a guess: 0 right, 1 wrong, which came to −1 mark on the real paper.");
+    // CONTROL: no right guess, so nothing is said of the Mistake Book.
+    expect(screen.queryByTestId("summary-lucky-to-book")).toBeNull();
   });
 
   it("offered and never used: a word on what the tap is for, and no verdict on the wrong answers", async () => {

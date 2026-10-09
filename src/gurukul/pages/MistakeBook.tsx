@@ -15,7 +15,7 @@ import { DifficultyBadge, EmptyState, GlassCard, PageHeader, PageSkeleton, Progr
 import {
   AlertCircle, Brain, Search, Bookmark, BookmarkCheck,
   ChevronDown, ChevronRight, CheckCircle2, XCircle, ArrowRight,
-  RotateCcw, RefreshCw, Play, Eye, Tag, Flag,
+  RotateCcw, RefreshCw, Play, Eye, Tag, Flag, HelpCircle,
 } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toErrorMessage } from "@/lib/presentation";
@@ -76,6 +76,19 @@ function FreqBadge({ freq }: { freq: number }) {
   );
 }
 
+/**
+ * C2: a right answer marked as a guess is in the book too — the mark was luck,
+ * not knowing. Said as what it is, never as a wrong answer.
+ */
+function LuckyGuessBadge({ count }: { count: number }) {
+  if (count < 1) return null;
+  return (
+    <span data-testid="mistake-lucky-guess" className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-warning/15 text-foreground">
+      {count === 1 ? "Right by a guess" : `Right by a guess ×${count}`}
+    </span>
+  );
+}
+
 function MistakeCard({
   mistake, onRetry, onExplain, onClear, clearing, onToggleBookmark, onDispute, disputing, disputed, onDeleteCapture, markBar,
 }: {
@@ -113,6 +126,7 @@ function MistakeCard({
               <DifficultyBadge level={mistake.difficulty ?? undefined}/>
               <QuestionFormBadge text={mistake.question} options={mistake.options}/>
               <FreqBadge freq={mistake.frequency}/>
+              <LuckyGuessBadge count={mistake.luckyGuesses}/>
               {mistake.aiAnswered && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-400/10 text-sky-300">AI answered</span>
               )}
@@ -198,6 +212,15 @@ function MistakeCard({
           <div className="mt-4 space-y-3">
             {/* Answer comparison */}
             <div className="grid grid-cols-2 gap-2">
+              {/* The last answer given was the right one: a lucky guess (C2). */}
+              {mistake.chosen !== null && mistake.chosen === mistake.correct ? (
+              <div className="p-3 rounded-xl bg-warning/10 border border-warning/30" data-testid="mistake-answer-guessed">
+                <div className="text-[10px] font-bold text-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <HelpCircle className="w-3 h-3"/> Your Answer — right, by a guess
+                </div>
+                <p className="text-xs text-foreground font-semibold">{mistake.options[mistake.chosen] ?? "Not recorded"}</p>
+              </div>
+              ) : (
               <div className="p-3 rounded-xl bg-rose-500/8 border border-rose-500/20">
                 <div className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                   <XCircle className="w-3 h-3"/> Your Answer
@@ -208,6 +231,7 @@ function MistakeCard({
                     : "Not recorded"}
                 </p>
               </div>
+              )}
               <div className="p-3 rounded-xl bg-emerald-500/8 border border-emerald-500/20">
                 <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3"/> Correct Answer

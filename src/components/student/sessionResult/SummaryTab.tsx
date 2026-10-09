@@ -95,6 +95,14 @@ export function SummaryTab({ analysis, stats, subjectRaw, chapterRaw, compare, r
                 {pluralise(guesses.marked, "answer")} marked as a guess: {guesses.lucky.length} right, {guesses.missed.length} wrong
                 {guesses.net != null ? `, which came to ${signed(guesses.net, "mark", "marks")} on the real paper` : ""}.
               </p>
+              {/* C2 (20261152000000): a right answer marked as a guess goes to the Mistake Book. */}
+              {guesses.lucky.length > 0 && (
+                <p className="mt-1 text-xs text-muted-foreground" data-testid="summary-lucky-to-book">
+                  {guesses.lucky.length === 1
+                    ? "The one right by a guess is in your Mistake Book, so recovery and revision will ask it again."
+                    : `The ${guesses.lucky.length} right by a guess are in your Mistake Book, so recovery and revision will ask them again.`}
+                </p>
+              )}
               <div className="mt-3 flex flex-wrap gap-2">
                 {(["lucky", "unmarkedWrong", "missed"] as const).filter((k) => guesses[k].length > 0).map((k) => (
                   <Button key={k} variant="outline" size="sm" onClick={() => onShowQuestions(k)} title={ANSWER_NOTES[k].help}>

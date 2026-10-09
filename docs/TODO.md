@@ -159,7 +159,8 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
 - **~~C1. Accuracy by question type across all practice~~ — DONE 2026-10-09
   (20261151000000, KNOWN_ISSUES 120)** — "70% on direct MCQs, 30% on
   assertion–reason". Analysis → Practice: "How you do by kind of question".
-- **C2. Lucky guesses go into revision.** A right answer marked as a guess is
+- **~~C2. Lucky guesses go into revision~~ — DONE 2026-10-09 (20261152000000,
+  KNOWN_ISSUES 121).** A right answer marked as a guess is
   not knowledge, yet today it never enters recovery or revision.
 - **C3. Does guessing pay, for this student.** With +5/−1 a guess pays above
   one right in six. The guess tap (step 3b) gives each student their own rate;
