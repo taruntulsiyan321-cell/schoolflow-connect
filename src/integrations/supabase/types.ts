@@ -10699,6 +10699,7 @@ export type Database = {
       }
       question_bank_student: {
         Row: {
+          answers_are_numbers: boolean | null
           board: string | null
           chapter: string | null
           chapter_id: string | null
@@ -10722,6 +10723,7 @@ export type Database = {
           variant_tier: number | null
         }
         Insert: {
+          answers_are_numbers?: never
           board?: string | null
           chapter?: string | null
           chapter_id?: string | null
@@ -10745,6 +10747,7 @@ export type Database = {
           variant_tier?: number | null
         }
         Update: {
+          answers_are_numbers?: never
           board?: string | null
           chapter?: string | null
           chapter_id?: string | null
@@ -11708,6 +11711,7 @@ export type Database = {
         Returns: Json
       }
       ai_session_memory_read: { Args: { p_session_id: string }; Returns: Json }
+      answers_are_numbers: { Args: { _options: Json }; Returns: boolean }
       apply_question_report_verdict: {
         Args: { _question_id: string; _verdict: Json }
         Returns: Json

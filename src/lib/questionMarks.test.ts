@@ -247,3 +247,33 @@ describe("mistake types, lately against before", () => {
     expect(risingTag(tagTrend([m("5", ["recall"], daysAgo(15))], TAG_LIST, NOW, 14))).toBeNull();
   });
 });
+
+describe("a mistake type drives practice (C5)", () => {
+  it("names a drill for calculation errors and misread questions, and none for the rest", async () => {
+    const { drillFor } = await import("./questionMarks");
+    expect(drillFor("calculation_error")).toMatchObject({ numberAnswers: true, forms: null });
+    expect(drillFor("misread_question")).toMatchObject({ numberAnswers: false, forms: ["statements", "assertion_reason"] });
+    for (const none of ["recall", "conceptual_gap", "guessed", "", null, undefined, "toString", "__proto__"]) {
+      expect(drillFor(none)).toBeNull();
+    }
+  });
+
+  it("drills only types the catalogue has (20261137000000)", async () => {
+    const { MISTAKE_DRILLS } = await import("./questionMarks");
+    const seeded = readFileSync(join(process.cwd(), "supabase/migrations/20261137000000_a_student_marks_why_a_question_went_wrong.sql"), "utf8");
+    for (const tag of Object.keys(MISTAKE_DRILLS)) {
+      expect(seeded.includes(`('${tag}',`), `${tag} is not a mark tag`).toBe(true);
+      expect(MISTAKE_DRILLS[tag].tag).toBe(tag);
+    }
+    // CONTROL: a made-up tag is not in the catalogue.
+    expect(seeded.includes("('made_up_tag',")).toBe(false);
+  });
+
+  it("runs a drill in the subject most of the marks are in", async () => {
+    const { drillSubject } = await import("./questionMarks");
+    expect(drillSubject([{ subject: "economics" }, { subject: "accountancy" }, { subject: "accountancy" }])).toBe("accountancy");
+    // A tie goes to the subject met first; marks with no subject do not count.
+    expect(drillSubject([{ subject: null }, { subject: "economics" }, { subject: "accountancy" }])).toBe("economics");
+    expect(drillSubject([{ subject: null }])).toBeNull();
+  });
+});

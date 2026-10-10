@@ -7,7 +7,7 @@ import { StudentErrorState, StudentListSkeleton } from "@/components/student/Stu
 import { QuestionText } from "@/components/QuestionText";
 import { displayChapter, displaySubject } from "@/lib/academicPresentation";
 import { pluralise } from "@/lib/plural";
-import { NO_TAG, bucketMarks, risingTag, tagTrend } from "@/lib/questionMarks";
+import { NO_TAG, bucketMarks, drillFor, drillSubject, risingTag, tagTrend } from "@/lib/questionMarks";
 import { RECENT_WINDOW_DAYS } from "@/academic/metrics/thresholds";
 import { QuestionMarkBar } from "@/components/student/questionMarks/QuestionMarkBar";
 import { useQuestionMarks } from "@/components/student/questionMarks/useQuestionMarks";
@@ -131,6 +131,11 @@ export default function MistakeTypes() {
       <div className="space-y-3">
         {buckets.map((b) => {
           const isOpen = expanded === b.key;
+          // C5: a type a kind of question drills, in the subject most of these
+          // questions are in — the one chosen above, when one is, since the
+          // groups then hold only its questions.
+          const drill = drillFor(b.key);
+          const drillIn = drill ? drillSubject(b.marks) : null;
           return (
             <GlassCard key={b.key} className="overflow-hidden">
               <button
@@ -145,6 +150,19 @@ export default function MistakeTypes() {
                   {isOpen ? <ChevronDown className="h-4 w-4" aria-hidden /> : <ChevronRight className="h-4 w-4" aria-hidden />}
                 </span>
               </button>
+              {isOpen && drill && drillIn && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 text-xs" data-testid="mistake-drill">
+                  <span className="text-muted-foreground">
+                    Drill it: {drill.label.toLowerCase()}, in {displaySubject(drillIn) || drillIn}.
+                  </span>
+                  <Link
+                    to={`/student/practice?${new URLSearchParams({ subject: drillIn, drill: drill.tag })}`}
+                    className="rounded-lg bg-primary px-2.5 py-1 font-semibold text-primary-foreground hover:bg-primary/90"
+                  >
+                    Start a drill
+                  </Link>
+                </div>
+              )}
               {isOpen && user && (
                 <ul className="divide-y divide-border border-t border-border">
                   {b.marks.map((m) => (

@@ -5445,3 +5445,49 @@ hidden).
    session (fewer questions, easiest first) was not built. The bank's difficulty filter is strict, so an easy-only
    session on a thin chapter could hold a few questions or none. That shape is the owner's to rule on before it is
    built.
+
+## 124. A mistake type drives practice — BUILT and LIVE 2026-10-09 (20261154000000); what is open
+
+**docs/TODO.md C5.** On Mistake Types, a group of questions marked "Calculation error" or "Misread the question"
+offers **Start a drill**. It runs in the subject most of those questions are in, which is the subject chosen above
+when one is.
+* A calculation drill serves questions worked out to a figure: `answers_are_numbers(options)` is true when every
+  option is a number or an amount, and the student's view of the bank (`question_bank_student`) carries the
+  result.
+* A reading drill serves statement-based and assertion–reason questions (`question_format`).
+* One home for which type drives which drill: `MISTAKE_DRILLS` in `src/lib/questionMarks.ts`. A test holds its
+  tags to the catalogue seeded in 20261137000000.
+* Practice reads `?drill=` through `src/gurukul/pages/practiceLink.ts`, which is now the one reader of every
+  `?subject&chapter&topic` link, lifted out of the Practice screen so what a link starts is tested without drawing
+  it. The bank loader applies the drill on every pass, like difficulty.
+* An empty drill says what it looked for: "The bank has no questions worked out to a figure in Business Studies
+  yet."
+
+**Not a stored column, by measurement.** The first version added `answers_are_numbers` to `question_bank` as a
+generated column. The bank is 273 MB, and adding one rewrites the table under an exclusive lock that stops every
+practice load. Its round trip outlasted the API's 100-second limit (HTTP 524); nothing was left running or locked
+afterwards (checked). Computed in the view instead, it cannot drift from the options and the round trip takes
+2 seconds.
+
+**Measured:**
+* The proof checks the reading on 12 option shapes, including words around a figure (read as words, on purpose),
+  checks there is enough Accountancy to drill, and reads through the view as a CUET student.
+* 3 mutants are refused (an unanchored pattern, one option, the view without it), and the round trip passes.
+* 7 client mutants are killed, and one redundant branch the mutants exposed was removed.
+* Live, as exam account 095998bc:
+
+| Subject | Worked out to a figure | Statement or assertion–reason |
+|---|---:|---:|
+| Accountancy | 159 | 29 |
+| Business Studies | 0 | 32 |
+| Economics | 1 | 7 |
+| Mathematics | 0 | 7 |
+| English | 0 | 2 |
+| General Aptitude | 2 | 2 |
+
+**Open:**
+1. **Thin supply outside Accountancy**, as the table shows. Filling it is question-bank work, paused by the owner.
+2. **A figure inside words is read as words** ("Profit ₹ 40,000"), so some calculation questions are left out of
+   the drill. This keeps the reading conservative; widen it only with a measured sample.
+3. **Only the two types the to-do names drive a drill.** The other seven types (conceptual gap, recall, formula
+   error and the rest) drive none until the owner says what each should drill.

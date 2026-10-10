@@ -1790,6 +1790,10 @@ export const PracticeService = {
       topic?: string | null;
       difficulty?: string | null;
       classLevel?: number | null;
+      /** Only questions of these forms (question_format) — a drill (C5). */
+      forms?: ReadonlyArray<string> | null;
+      /** Only questions answered with a figure (answers_are_numbers) — a drill (C5). */
+      numberAnswers?: boolean;
       limit?: number;
       pyqOnly?: boolean;
       /** Previous Year Questions — restrict to a single exam year. */
@@ -1946,6 +1950,14 @@ export const PracticeService = {
       }
       if (opts.difficulty && opts.difficulty !== "mixed") {
         query = query.eq("difficulty", opts.difficulty);
+      }
+      // A mistake-type drill (C5): applied on every pass, like difficulty —
+      // a fallback that dropped it would serve the questions the drill is not.
+      if (opts.forms && opts.forms.length > 0) {
+        query = query.in("question_format", opts.forms);
+      }
+      if (opts.numberAnswers) {
+        query = query.eq("answers_are_numbers", true);
       }
       // ── WEAK AREAS: the filter must reach the DATABASE ──────────────────
       //

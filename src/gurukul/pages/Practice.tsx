@@ -4,6 +4,8 @@ import type { PageKey } from "@/gurukul/nav";
 import { useGurukulAcademicIdentity, useGurukulShellReady, useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, PracticeService, RecoveryEngineService, WEAK_CONCEPT_THRESHOLD, type CurriculumScope } from "@/academic";
+import { type MistakeDrill } from "@/lib/questionMarks";
+import { readLabelledLink } from "./practiceLink";
 import type { PracticeSessionRow } from "@/academic";
 import { attemptsToFinishPayload, persistAndGoToPracticeResult } from "@/lib/practiceSessionSnapshot";
 import { ReportQuestionButton } from "@/components/student/questionReports/ReportQuestionButton";
@@ -16,7 +18,6 @@ import { PlanLimitNotice } from "@/gurukul/components/PlanLimitNotice";
 import {
   displayChapter,
   displaySubject,
-  isPlaceholderAcademicLabel,
   presentAcademicLabel,
 } from "@/lib/academicPresentation";
 import {
@@ -1171,6 +1172,8 @@ interface SessionConfig {
   difficulty: string; qCount: number; timeLimitSec: number | null;
   /** Previous Year Questions only — restricts to one exam year. */
   pyqYear?: number | null;
+  /** A mistake type's drill (C5): only the questions that type needs. */
+  drill?: MistakeDrill | null;
   /**
    * §5.4 — set when this session IS a revision check for that chapter.
    *
@@ -1390,6 +1393,8 @@ async function loadSessionQuestions(
         topic: config.topic,
         difficulty,
         limit: config.qCount,
+        forms: config.drill?.forms ?? null,
+        numberAnswers: config.drill?.numberAnswers ?? false,
       });
   }
 }
@@ -2105,7 +2110,11 @@ export function Session({
             ? config.upload.practiseMode === "practise_from_notes"
               ? "No questions written from these notes yet."
               : "No practisable questions in this upload for that mode yet."
-            : (emptyByMode[config.mode] ??
+            : config.drill
+              // A drill names what it looked for (C5): measured 2026-10-09, a
+              // CUET calculation drill finds none in Business Studies.
+              ? `The bank has no ${config.drill.label.toLowerCase()} in ${displaySubject(config.subject) || config.subject} yet.`
+              : (emptyByMode[config.mode] ??
               "The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions.")}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
@@ -2701,54 +2710,30 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       return;
     }
 
-    const chapterRaw = searchParams.get("chapter");
-    const subjectRaw = searchParams.get("subject");
-    const topicRaw = searchParams.get("topic");
-    // ?revision=<uuid> USED TO BE HANDLED HERE and is deliberately gone.
-    //
-    // It turned the session into a §5.4 check by chapter alone, leaving the
-    // ordinary loader to pick the questions — and the ordinary loader cannot
-    // exclude what the student has already seen. Keeping it alongside the
-    // router-state hand-off would leave a second way to start a check that
-    // quietly skips the one rule that makes a check mean anything.
-    if (!chapterRaw && !subjectRaw && !topicRaw) return;
-
-    const chapter =
-      chapterRaw && !isPlaceholderAcademicLabel(chapterRaw) ? chapterRaw.trim() : null;
-    const subject =
-      subjectRaw && !isPlaceholderAcademicLabel(subjectRaw) ? subjectRaw.trim() : null;
-    const topic =
-      topicRaw && !isPlaceholderAcademicLabel(topicRaw) ? topicRaw.trim() : null;
+    // ?subject=&chapter=&topic=&drill= — read by practiceLink.ts.
+    const link = readLabelledLink(searchParams);
+    if (link.kind === "none") return;
 
     deepLinkHandled.current = true;
     setSearchParams({}, { replace: true });
 
-    if (!chapter && !subject && !topic) {
+    if (link.kind === "placeholder") {
       toast.message("Practice link had no real subject or chapter — pick a mode below.");
       return;
     }
 
-    // A topic WITHOUT a chapter is topic mode, not chapter mode.
-    //
-    // `chapter: chapter || topic` used to copy the topic into the chapter,
-    // from when the topic could not be narrowed server-side and had to act as
-    // a chapter needle. It now does active harm: the query would require
-    // question_bank.chapter to equal a TOPIC name, which no row satisfies, so
-    // the narrowed fetch returns nothing and falls back to the 400-row window
-    // this was meant to avoid. It also wrote the topic name into
-    // practice_sessions.chapter, inventing a chapter that does not exist.
-    const modeKeyDeep: ModeKey = chapter ? "chapter" : topic ? "topic" : "subject";
-    const mode = MODES.find((m) => m.key === modeKeyDeep) ?? MODES.find((m) => m.key === "chapter")!;
-    setModeKey(modeKeyDeep);
+    const mode = MODES.find((m) => m.key === link.mode) ?? MODES.find((m) => m.key === "chapter")!;
+    setModeKey(link.mode);
     startSession({
-      mode: modeKeyDeep,
-      label: mode.label,
-      subject: subject || "Mixed",
-      chapter,
-      topic,
+      mode: link.mode,
+      label: link.drill?.label ?? mode.label,
+      subject: link.subject || "Mixed",
+      chapter: link.chapter,
+      topic: link.topic,
       difficulty: "mixed",
       qCount: 20,
       timeLimitSec: null,
+      drill: link.drill,
     });
   }, [searchParams, setSearchParams, phase]);
 

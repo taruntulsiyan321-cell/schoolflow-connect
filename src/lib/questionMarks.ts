@@ -12,6 +12,7 @@
  * question by different rows, find the same mark. An empty mark is not stored:
  * saving one deletes the row.
  */
+import type { QuestionForm } from "../../supabase/functions/_shared/questionForms.ts";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -71,6 +72,41 @@ export function formatClock(seconds: number): string {
 export const NO_TAG = "__no_tag__";
 
 export type MarkBucket = { key: string; label: string; marks: QuestionMark[] };
+
+/**
+ * A mistake type that a kind of question drills (docs/TODO.md C5). A
+ * calculation error drills questions worked out to a figure
+ * (question_bank_student.answers_are_numbers, 20261154000000); a misread
+ * question drills statement-based and assertion–reason questions, where
+ * reading is the whole question. The one home for which type drives which
+ * practice: Mistake Types offers it, Practice runs it from ?drill=<type>.
+ */
+export type MistakeDrill = {
+  tag: string;
+  /** What the session asks — said on the button and as the session's name. */
+  label: string;
+  forms: QuestionForm[] | null;
+  numberAnswers: boolean;
+};
+
+export const MISTAKE_DRILLS: Readonly<Record<string, MistakeDrill>> = {
+  calculation_error: { tag: "calculation_error", label: "Questions worked out to a figure", forms: null, numberAnswers: true },
+  misread_question: { tag: "misread_question", label: "Statement and assertion–reason questions", forms: ["statements", "assertion_reason"], numberAnswers: false },
+};
+
+/** The drill a mistake type drives, or null when it drives none. */
+export function drillFor(tag: string | null | undefined): MistakeDrill | null {
+  return tag && Object.prototype.hasOwnProperty.call(MISTAKE_DRILLS, tag) ? MISTAKE_DRILLS[tag] : null;
+}
+
+/** Where a drill for these marks runs: the subject most of them are in (the first met, on a tie). */
+export function drillSubject(marks: ReadonlyArray<Pick<QuestionMark, "subject">>): string | null {
+  const counts = new Map<string, number>();
+  for (const m of marks) if (m.subject) counts.set(m.subject, (counts.get(m.subject) ?? 0) + 1);
+  let best: string | null = null;
+  for (const [subject, n] of counts) if (best === null || n > (counts.get(best) ?? 0)) best = subject;
+  return best;
+}
 
 /**
  * Every question the student has marked, grouped by the tags they chose — the

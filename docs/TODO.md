@@ -168,7 +168,7 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
   Analysis says "your guesses pay" or "leave them".
 - **~~C4. Start a chapter never practised~~ — DONE 2026-10-09 (KNOWN_ISSUES 123)** — one tap from the syllabus map
   (Subjects & Chapters → Your whole syllabus) to a starter session.
-- **C5. Mistake types drive practice** — "Calculation error" → numerical
+- **~~C5. Mistake types drive practice~~ — DONE 2026-10-09 (20261154000000, KNOWN_ISSUES 124)** — "Calculation error" → numerical
   drills; "Misread the question" → statement and assertion–reason questions.
 - **C6. A revision calendar** — what is due over the next two weeks, not only
   today.

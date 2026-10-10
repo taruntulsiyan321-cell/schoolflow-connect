@@ -137,3 +137,49 @@ describe("mistake types, lately", () => {
     expect(screen.queryByTestId("mistake-trend")).toBeNull();
   });
 });
+
+describe("a mistake type drives practice (C5)", () => {
+  const DRILL_TAGS: MarkTag[] = [
+    ...TAGS,
+    { key: "calculation_error", label: "Calculation error", group: "Working it out", position: 5, active: true },
+  ];
+  const drillMarks = [
+    mark("k1", ["calculation_error"], "economics"),
+    mark("k2", ["calculation_error"], "accountancy"),
+    mark("k3", ["calculation_error"], "accountancy"),
+    mark("k4", ["recall"], "accountancy"),
+  ];
+  const openGroup = (label: string) => {
+    const header = screen.getAllByRole("button", { expanded: false }).find((b) => b.textContent?.startsWith(label));
+    if (header) fireEvent.click(header);
+  };
+
+  beforeEach(() => {
+    state.value = { ...state.value, tags: DRILL_TAGS, marks: new Map(drillMarks.map((m) => [m.ref.id, m])) };
+  });
+
+  it("offers a drill in the subject most of the type's questions are in", () => {
+    render(<MemoryRouter><MistakeTypes /></MemoryRouter>);
+    // The biggest group, Calculation error, starts open.
+    const drill = screen.getByTestId("mistake-drill");
+    expect(drill).toHaveTextContent("Drill it: questions worked out to a figure, in");
+    expect(within(drill).getByRole("link", { name: "Start a drill" }))
+      .toHaveAttribute("href", "/student/practice?subject=accountancy&drill=calculation_error");
+  });
+
+  it("drills in the subject chosen above when one is", () => {
+    render(<MemoryRouter><MistakeTypes /></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button", { name: /Economics/ }));
+    expect(within(screen.getByTestId("mistake-drill")).getByRole("link", { name: "Start a drill" }))
+      .toHaveAttribute("href", "/student/practice?subject=economics&drill=calculation_error");
+  });
+
+  it("CONTROL: a type that drives no drill offers none", () => {
+    render(<MemoryRouter><MistakeTypes /></MemoryRouter>);
+    expect(screen.getByTestId("mistake-drill")).toBeInTheDocument();
+    // One group is open at a time: opening Recall closes Calculation error.
+    openGroup("Recall");
+    expect(screen.getByRole("button", { expanded: true })).toHaveTextContent(/^Recall/);
+    expect(screen.queryByTestId("mistake-drill")).toBeNull();
+  });
+});
