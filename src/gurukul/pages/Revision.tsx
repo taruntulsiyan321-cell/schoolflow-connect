@@ -55,7 +55,7 @@ function RevItemCard({
               {nextCheck.charAt(0).toUpperCase() + nextCheck.slice(1)}
             </span>
             {item.state === "revision_failed" && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-300">
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-destructive">
                 Restarted
               </span>
             )}
@@ -74,7 +74,7 @@ function RevItemCard({
       </div>
       <div className="flex items-center gap-2 mt-3 flex-wrap">
         <button onClick={onRevise}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/20 border border-violet-500/30 text-violet-300 text-xs font-bold hover:bg-violet-500/30 transition-all">
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/20 border border-violet-500/30 text-primary text-xs font-bold hover:bg-violet-500/30 transition-all">
           <Play className="w-3 h-3"/> Practice chapter
         </button>
         {/* DISABLED WHEN THERE IS NOTHING TO CHECK ON. The note below already
@@ -88,7 +88,7 @@ function RevItemCard({
             needs and this reflects the answer. */}
         <button onClick={onCheck} disabled={busy || item.freshAvailable === 0}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold transition-all",
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-success text-xs font-semibold transition-all",
             busy || item.freshAvailable === 0 ? "opacity-60 cursor-not-allowed" : "hover:bg-emerald-500/20",
           )}>
           <CheckCircle2 className="w-3 h-3"/> {busy ? "Building your check…" : "Take the check"}
@@ -260,7 +260,7 @@ export default function Revision() {
       <div className="space-y-6">
         {header}
         <GlassCard className="p-8 text-center">
-          <AlertCircle className="w-8 h-8 text-violet-400 mx-auto mb-2"/>
+          <AlertCircle className="w-8 h-8 text-primary mx-auto mb-2"/>
           <p className="text-sm text-muted-foreground">Could not load your revision schedule</p>
           {items.message && <p className="text-xs text-muted-foreground mt-1">{items.message}</p>}
           <button type="button" onClick={reload}
@@ -298,8 +298,8 @@ export default function Revision() {
         subtitle="Spaced-repetition review to move concepts into long-term memory."
         action={
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
-            <Flame className="w-3.5 h-3.5 text-amber-400"/>
-            <span className="text-xs font-bold text-amber-400">{streak > 0 ? `${streak}-day practice streak` : "No practice streak yet"}</span>
+            <Flame className="w-3.5 h-3.5 text-warning"/>
+            <span className="text-xs font-bold text-warning">{streak > 0 ? `${streak}-day practice streak` : "No practice streak yet"}</span>
           </div>
         }
       />
@@ -312,7 +312,7 @@ export default function Revision() {
           disabled={dueTakeable.length === 0}
           onClick={() => { void startCheck(dueTakeable[0]); }}
           className="p-4 rounded-2xl border border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 transition-all text-left group disabled:opacity-50 disabled:pointer-events-none">
-          <Zap className="w-5 h-5 text-violet-400 mb-2 group-hover:scale-110 transition-transform"/>
+          <Zap className="w-5 h-5 text-primary mb-2 group-hover:scale-110 transition-transform"/>
           <div className="text-sm font-bold text-foreground">Quick Revision</div>
           <div className="text-xs text-muted-foreground mt-0.5">
             {dueTakeable.length > 0
@@ -372,7 +372,7 @@ export default function Revision() {
       <GlassCard className="p-5 border-amber-500/15">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0">
-            <Flame className="w-6 h-6 text-amber-400"/>
+            <Flame className="w-6 h-6 text-warning"/>
           </div>
           <div className="flex-1">
             <div className="text-sm font-bold text-foreground mb-0.5">
@@ -384,7 +384,7 @@ export default function Revision() {
                 : "Finish a practice session or a check each day to build one."}
             </div>
             <div className="text-xs text-muted-foreground">
-              Current streak: <span className="text-amber-300 font-bold tabular-nums">{streak}</span> day{streak === 1 ? "" : "s"}
+              Current streak: <span className="text-warning font-bold tabular-nums">{streak}</span> day{streak === 1 ? "" : "s"}
             </div>
           </div>
         </div>
@@ -449,7 +449,7 @@ export default function Revision() {
                     <div
                       className={cn(
                         "text-sm font-bold tabular-nums",
-                        h.passed ? "text-emerald-400" : "text-amber-400",
+                        h.passed ? "text-success" : "text-warning",
                       )}
                     >
                       {h.correct}/{h.total}

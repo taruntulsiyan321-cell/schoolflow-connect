@@ -174,7 +174,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
         )}
         style={!isNova ? { background:"linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8))", boxShadow:"0 4px 16px hsl(var(--primary) / 0.25)" } : {}}>
           {msg.isError && (
-            <div className="flex items-center gap-1.5 mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-400">
+            <div className="flex items-center gap-1.5 mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-warning">
               <AlertCircle className="w-3 h-3"/> Connection issue — not a live answer
             </div>
           )}
@@ -196,11 +196,11 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
           )}>
             <button onClick={copy} title="Copy"
               className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
-              {copied ? <Check className="w-3 h-3 text-emerald-400"/> : <Copy className="w-3 h-3"/>}
+              {copied ? <Check className="w-3 h-3 text-success"/> : <Copy className="w-3 h-3"/>}
             </button>
             <button onClick={() => onBookmark(msg.id)} title="Bookmark"
               className={cn("w-6 h-6 rounded-lg flex items-center justify-center transition-all",
-                msg.bookmarked ? "text-amber-400 bg-amber-400/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                msg.bookmarked ? "text-warning bg-amber-400/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}>
               <Bookmark className="w-3 h-3"/>
             </button>
@@ -212,7 +212,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
                   className={cn(
                     "w-6 h-6 rounded-lg flex items-center justify-center transition-all",
                     msg.feedback === "like"
-                      ? "text-emerald-400 bg-emerald-400/10"
+                      ? "text-success bg-emerald-400/10"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   )}
                 >
@@ -275,7 +275,7 @@ function QuestionContextCard({ ctx }: { ctx: NovaQuestionContext }) {
             {correct && (
               <div className="text-xs">
                 <span className="text-muted-foreground">Correct answer: </span>
-                <span className="text-emerald-400 font-semibold">{correct}</span>
+                <span className="text-success font-semibold">{correct}</span>
               </div>
             )}
           </div>
@@ -378,8 +378,8 @@ function Sidebar({
       )} onClick={() => onSelect(c.id)}>
         <div className="flex-1 min-w-0 pt-0.5">
           <div className="flex items-center gap-1.5 mb-0.5">
-            {c.pinned  && <Pin    className="w-2.5 h-2.5 text-blue-400 shrink-0"/>}
-            {c.starred && <Star   className="w-2.5 h-2.5 text-amber-400 fill-amber-400 shrink-0"/>}
+            {c.pinned  && <Pin    className="w-2.5 h-2.5 text-primary shrink-0"/>}
+            {c.starred && <Star   className="w-2.5 h-2.5 text-warning fill-amber-400 shrink-0"/>}
             <span className={cn(
               "text-xs font-semibold truncate",
               isActive ? "text-foreground" : "text-muted-foreground"
@@ -1160,13 +1160,13 @@ export default function AICoach() {
               </button>
               <button onClick={() => pinConvo(active.id)} title={active.pinned?"Unpin":"Pin"}
                 className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                  active.pinned ? "text-blue-400 bg-blue-400/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  active.pinned ? "text-primary bg-blue-400/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}>
                 <Pin className="w-3.5 h-3.5"/>
               </button>
               <button onClick={() => starConvo(active.id)} title={active.starred?"Unstar":"Star"}
                 className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                  active.starred ? "text-amber-400 bg-amber-400/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  active.starred ? "text-warning bg-amber-400/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}>
                 <Star className={cn("w-3.5 h-3.5", active.starred && "fill-amber-400")}/>
               </button>

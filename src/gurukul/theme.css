@@ -90,15 +90,11 @@
 }
 
 /* Force light theme backgrounds */
-.gurukul-student > div,
-.gurukul-student [style*="#0d0d0f"],
-.gurukul-student [class*="bg-[#0d0d0f]"] {
+.gurukul-student > div {
   background: hsl(var(--background)) !important;
 }
 
-.gurukul-student aside,
-.gurukul-student aside[class*="bg-[#0d0d0f]"],
-.gurukul-student header[class*="bg-[#0d0d0f]"] {
+.gurukul-student aside {
   background: hsl(var(--card)) !important;
   border-color: hsl(var(--border)) !important;
 }
@@ -108,80 +104,8 @@
   border-color: hsl(var(--border)) !important;
 }
 
-.gurukul-student aside [class*="border-white"],
-.gurukul-student header [class*="border-white"] {
-  border-color: hsl(var(--border)) !important;
-}
-
-.gurukul-student aside [class*="text-white"],
-.gurukul-student header [class*="text-white"] {
-  color: hsl(var(--foreground)) !important;
-}
-
-.gurukul-student aside [class*="text-[#78788c]"],
-.gurukul-student header [class*="text-[#78788c]"] {
-  color: hsl(var(--muted-foreground)) !important;
-}
-
-.gurukul-student aside [class*="bg-white/5"],
-.gurukul-student header [class*="bg-white/5"] {
-  background: hsl(var(--muted)) !important;
-}
-
 .gurukul-student aside [style*="linear-gradient"] {
   background: hsl(var(--primary)) !important;
-}
-
-/* Page tabs use a legacy dark utility vocabulary. Translate it at the student
-   boundary so every tab inherits the same light surfaces and readable text. */
-.gurukul-student [class*="bg-white/"],
-.gurukul-student [class*="bg-[#0d0d0f]"],
-.gurukul-student [class*="bg-[#111827]"],
-.gurukul-student [class*="bg-[#0f172a]"] {
-  background-color: hsl(var(--muted)) !important;
-}
-
-.gurukul-student [class*="border-white/"] {
-  border-color: hsl(var(--border)) !important;
-}
-
-.gurukul-student [class*="text-white"] {
-  color: hsl(var(--foreground)) !important;
-}
-
-.gurukul-student [class*="text-[#78788c]"] {
-  color: hsl(var(--muted-foreground)) !important;
-}
-
-.gurukul-student [class*="bg-[#3b5bdb]"],
-.gurukul-student [class*="bg-[#6882e8]"],
-.gurukul-student [class*="bg-[#4b9fd4]"] {
-  background-color: hsl(var(--secondary)) !important;
-}
-
-.gurukul-student [class*="text-[#3b5bdb]"],
-.gurukul-student [class*="text-[#6882e8]"],
-.gurukul-student [class*="text-[#4b9fd4]"] {
-  color: hsl(var(--primary)) !important;
-}
-
-.gurukul-student [class*="border-[#3b5bdb]"],
-.gurukul-student [class*="border-[#6882e8]"],
-.gurukul-student [class*="border-[#4b9fd4]"] {
-  border-color: hsl(var(--primary) / 0.3) !important;
-}
-
-.gurukul-student [class*="bg-[#cc5069]"],
-.gurukul-student [class*="bg-[#c08a3a]"],
-.gurukul-student [class*="bg-[#4aa87a]"] {
-  color: hsl(var(--foreground)) !important;
-}
-
-.gurukul-student [style*="rgba(255,255,255"],
-.gurukul-student [style*="rgba(13,13,15"],
-.gurukul-student [style*="rgba(15,23,42"] {
-  background-color: hsl(var(--muted)) !important;
-  border-color: hsl(var(--border)) !important;
 }
 
 .gurukul-student h1, .gurukul-student h2, .gurukul-student h3, .gurukul-student h4 {
@@ -196,21 +120,7 @@
    Fix all hardcoded dark-theme colors in component JSX
    ══════════════════════════════════════════════════════════════════════════════ */
 
-/* Text color overrides - convert dark-theme white text to foreground */
-.gurukul-student .text-white,
-.gurukul-student [class*="text-white"] {
-  color: hsl(var(--foreground)) !important;
-}
-
-.gurukul-student .text-\[\#c8d4e8\],
-.gurukul-student .text-\[\#a0a0b0\] {
-  color: hsl(var(--muted-foreground)) !important;
-}
-
-/* Background overrides - dark backgrounds to light */
-.gurukul-student .bg-\[\#0d0d0f\],
-.gurukul-student .bg-\[\#111827\],
-.gurukul-student .bg-\[\#0f172a\],
+/* Background overrides */
 .gurukul-student .bg-background {
   background-color: hsl(var(--background)) !important;
 }
@@ -221,51 +131,8 @@
   background-color: hsl(var(--card)) !important;
 }
 
-/* Muted backgrounds */
-.gurukul-student .bg-white\/4,
-.gurukul-student .bg-white\/5,
-.gurukul-student .bg-white\/6,
-.gurukul-student .bg-white\/7,
-.gurukul-student .bg-white\/8,
-.gurukul-student .bg-white\/10,
-.gurukul-student .bg-white\/12,
-.gurukul-student .bg-white\/15,
-.gurukul-student [class*="bg-white/"] {
-  background-color: hsl(var(--muted)) !important;
-}
-
-/* Border overrides */
-.gurukul-student .border-white\/5,
-.gurukul-student .border-white\/6,
-.gurukul-student .border-white\/8,
-.gurukul-student .border-white\/10,
-.gurukul-student .border-white\/12,
-.gurukul-student [class*="border-white/"] {
-  border-color: hsl(var(--border)) !important;
-}
-
-/* Hover state backgrounds - ensure they work on light theme */
-.gurukul-student .hover\:bg-white\/4:hover,
-.gurukul-student .hover\:bg-white\/6:hover,
-.gurukul-student .hover\:bg-white\/7:hover,
-.gurukul-student .hover\:bg-white\/8:hover,
-.gurukul-student .hover\:bg-white\/10:hover,
-.gurukul-student [class*="hover:bg-white/"]:hover {
-  background-color: hsl(var(--secondary)) !important;
-}
-
 .gurukul-student .hover\:bg-muted:hover {
   background-color: hsl(var(--muted)) !important;
-}
-
-/* Hover text - ensure text stays readable on light backgrounds */
-.gurukul-student .hover\:text-white:hover {
-  color: hsl(var(--foreground)) !important;
-}
-
-/* Focus states */
-.gurukul-student .focus\:border-\[\#3b5bdb\]\/30:focus {
-  border-color: hsl(var(--primary) / 0.3) !important;
 }
 
 /* Input fields: each input draws its own box. Two rules here gave EVERY
@@ -276,12 +143,6 @@
    slider that had asked for none — and two more re-coloured each on focus,
    one of them to white. Removed 2026-10-03, with a placeholder rule that a
    later one always overrode. Focus shows through *:focus-visible below. */
-
-/* Fix inline style backgrounds using rgba with white */
-.gurukul-student [style*="rgba(255,255,255,0.0"],
-.gurukul-student [style*="rgba(255,255,255,0.1"] {
-  background-color: hsl(var(--muted)) !important;
-}
 
 /* Fix chart tooltips */
 .gurukul-student .recharts-tooltip-wrapper .recharts-default-tooltip {
@@ -305,37 +166,6 @@
    Removed 2026-09-11 along with both other copies. Empty states are the
    EmptyState component in components/shared.tsx. */
 
-/* Fix rose/red colored text readability */
-.gurukul-student .text-rose-200,
-.gurukul-student .text-rose-300 {
-  color: hsl(var(--destructive)) !important;
-}
-
-/* Fix emerald/green colored text readability */
-.gurukul-student .text-emerald-200,
-.gurukul-student .text-emerald-300,
-.gurukul-student .text-emerald-400 {
-  color: hsl(var(--success)) !important;
-}
-
-/* Fix violet/purple colored text readability */
-.gurukul-student .text-violet-300,
-.gurukul-student .text-violet-400 {
-  color: #6366f1 !important;
-}
-
-/* Fix amber colored text readability */
-.gurukul-student .text-amber-300,
-.gurukul-student .text-amber-400 {
-  color: hsl(var(--warning)) !important;
-}
-
-/* Fix blue colored text readability */
-.gurukul-student .text-blue-300,
-.gurukul-student .text-blue-400 {
-  color: hsl(var(--primary)) !important;
-}
-
 /* Button states */
 .gurukul-student button:disabled {
   opacity: 0.5;
@@ -357,12 +187,6 @@
 .gurukul-student aside [class*="active"] {
   background: hsl(var(--secondary)) !important;
   color: hsl(var(--primary)) !important;
-}
-
-/* Fix gradients that use dark colors */
-.gurukul-student [style*="linear-gradient(135deg,#3b5bdb"] {
-  /* Keep gradient but ensure text is readable */
-  color: white !important;
 }
 
 /* Message bubbles - student messages should stay gradient, Nova messages light */
@@ -446,14 +270,12 @@
 }
 
 /* Premium button variants */
-.gurukul-student button[class*="bg-[#3b5bdb]"]:not([class*="bg-[#3b5bdb]/"]),
 .gurukul-student button[class*="bg-primary"]:not([class*="bg-primary/"]) {
   background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.9) 100%);
   box-shadow: 0 2px 8px hsl(var(--primary) / 0.25), 0 1px 2px rgba(0, 0, 0, 0.1);
   border: 1px solid hsl(var(--primary) / 0.8);
 }
 
-.gurukul-student button[class*="bg-[#3b5bdb]"]:not([class*="bg-[#3b5bdb]/"]):hover,
 .gurukul-student button[class*="bg-primary"]:not([class*="bg-primary/"]):hover {
   background: linear-gradient(135deg, hsl(var(--primary) / 0.95) 0%, hsl(var(--primary) / 0.85) 100%);
   box-shadow: 0 4px 16px hsl(var(--primary) / 0.35), 0 2px 4px rgba(0, 0, 0, 0.12);
@@ -463,10 +285,6 @@
 /* Refined progress bars with smooth animations */
 .gurukul-student [class*="progress"] {
   transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.gurukul-student [class*="progress-bar"] > div {
-  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Enhanced dividers and separators */
@@ -626,10 +444,7 @@
 /* Border utilities */
 .gurukul-student .border-primary { border-color: hsl(var(--primary)) !important; }
 .gurukul-student .border-accent { border-color: hsl(var(--accent)) !important; }
-.gurukul-student .border-warning { border-color: hsl(var(--warning)) !important; }
 .gurukul-student .border-destructive { border-color: hsl(var(--destructive)) !important; }
-.gurukul-student .border-success { border-color: hsl(var(--success)) !important; }
-.gurukul-student .border-info { border-color: hsl(var(--info)) !important; }
 
 /* Text utilities */
 .gurukul-student .text-primary { color: hsl(var(--primary)) !important; }
@@ -701,8 +516,7 @@
 
 /* Apply to common elements */
 .gurukul-student [role="dialog"],
-.gurukul-student [role="alertdialog"],
-.gurukul-student .modal {
+.gurukul-student [role="alertdialog"] {
   animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -723,13 +537,6 @@
 .gurukul-student .stagger > *:nth-child(4) { animation: slide-in-bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.15s backwards; }
 .gurukul-student .stagger > *:nth-child(5) { animation: slide-in-bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards; }
 .gurukul-student .stagger > *:nth-child(6) { animation: slide-in-bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.25s backwards; }
-
-/* Hover lift */
-.gurukul-student .lift:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
 
 /* Shimmer effect for loading */
 .gurukul-student .shimmer {
@@ -817,7 +624,6 @@
  * Removed rather than qualified: qualifying it on `button` would have made it a
  * duplicate of the line above.
  */
-.gurukul-student button[class*="bg-[#3b5bdb]"]:not([class*="bg-[#3b5bdb]/"]),
 .gurukul-student button[class*="bg-primary"]:not([class*="bg-primary/"]) {
   background: linear-gradient(135deg, 
     hsl(var(--primary)) 0%, 
@@ -826,15 +632,6 @@
     0 2px 8px hsl(var(--primary) / 0.3),
     0 4px 16px hsl(var(--primary) / 0.15);
   border: 1px solid hsl(var(--primary) / 0.8);
-}
-
-.gurukul-student button[class*="bg-[#3b5bdb]"]:not([class*="bg-[#3b5bdb]/"]):hover {
-  background: linear-gradient(135deg, 
-    hsl(var(--primary) / 1.05) 0%, 
-    hsl(var(--primary)) 100%) !important;
-  box-shadow: 
-    0 4px 12px hsl(var(--primary) / 0.35),
-    0 8px 24px hsl(var(--primary) / 0.2);
 }
 
 /* Vibrant stat tiles with gradient borders */
@@ -1073,21 +870,6 @@
  * and one pulsing. Nothing referenced this class; verified by grep across src
  * before deletion. */
 
-/* Floating action button shadow */
-.gurukul-student .fab {
-  box-shadow:
-    0 4px 12px rgba(59, 91, 219, 0.3),
-    0 8px 24px rgba(0, 0, 0, 0.15);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.gurukul-student .fab:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 6px 16px rgba(59, 91, 219, 0.4),
-    0 12px 32px rgba(0, 0, 0, 0.18);
-}
-
 /* Enhanced scrolling */
 .gurukul-student {
   scroll-behavior: smooth;
@@ -1134,29 +916,9 @@
   75% { transform: scaleY(1.03) scaleX(0.98); }
 }
 
-.gurukul-student [class*="streak"] svg,
-.gurukul-student .flame {
+.gurukul-student [class*="streak"] svg {
   animation: flame-flicker 1.5s ease-in-out infinite;
   transform-origin: bottom center;
-}
-
-/* Practice mode selection */
-.gurukul-student .mode-card {
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.gurukul-student .mode-card:hover {
-  transform: translateY(-6px);
-  box-shadow:
-    0 12px 32px rgba(0, 0, 0, 0.1),
-    0 4px 12px rgba(59, 91, 219, 0.1);
-}
-
-.gurukul-student .mode-card.selected {
-  transform: translateY(-4px);
-  box-shadow:
-    0 8px 24px rgba(59, 91, 219, 0.25),
-    0 0 0 2px hsl(var(--primary));
 }
 
 @keyframes correct-pulse {

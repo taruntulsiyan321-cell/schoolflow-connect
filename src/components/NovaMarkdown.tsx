@@ -39,10 +39,10 @@ const components: Components = {
   ul: ({ children }) => <ul className="mb-2 ml-4 list-disc space-y-1 last:mb-0">{children}</ul>,
   ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal space-y-1 last:mb-0">{children}</ol>,
   li: ({ children }) => <li className="pl-0.5">{children}</li>,
-  h1: ({ children }) => <h3 className="mb-1.5 mt-2 text-[15px] font-semibold text-white first:mt-0">{children}</h3>,
-  h2: ({ children }) => <h4 className="mb-1.5 mt-2 text-[14px] font-semibold text-white first:mt-0">{children}</h4>,
-  h3: ({ children }) => <h5 className="mb-1 mt-2 text-[13px] font-semibold text-white first:mt-0">{children}</h5>,
-  h4: ({ children }) => <h6 className="mb-1 mt-2 text-[13px] font-semibold text-white first:mt-0">{children}</h6>,
+  h1: ({ children }) => <h3 className="mb-1.5 mt-2 text-[15px] font-semibold text-foreground first:mt-0">{children}</h3>,
+  h2: ({ children }) => <h4 className="mb-1.5 mt-2 text-[14px] font-semibold text-foreground first:mt-0">{children}</h4>,
+  h3: ({ children }) => <h5 className="mb-1 mt-2 text-[13px] font-semibold text-foreground first:mt-0">{children}</h5>,
+  h4: ({ children }) => <h6 className="mb-1 mt-2 text-[13px] font-semibold text-foreground first:mt-0">{children}</h6>,
   blockquote: ({ children }) => (
     <blockquote className="mb-2 border-l-2 border-border pl-3 italic text-[#9ca3c0] last:mb-0">{children}</blockquote>
   ),
@@ -62,7 +62,7 @@ const components: Components = {
       );
     }
     return (
-      <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12.5px]" {...rest}>
+      <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12.5px]" {...rest}>
         {children}
       </code>
     );
@@ -76,7 +76,7 @@ const components: Components = {
     </div>
   ),
   thead: ({ children }) => <thead className="border-b border-border">{children}</thead>,
-  tr: ({ children }) => <tr className="border-b border-white/5 last:border-0">{children}</tr>,
+  tr: ({ children }) => <tr className="border-b border-border last:border-0">{children}</tr>,
   th: ({ children }) => <th className="px-2 py-1 text-left font-semibold text-foreground">{children}</th>,
   td: ({ children }) => <td className="px-2 py-1 align-top">{children}</td>,
 };

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -19,9 +19,15 @@ import { describe, expect, it } from "vitest";
  *      nothing; the pale square left behind was the rule's own white gradient.
  *      Home, Learning and Practice each shipped a blank icon because of it.
  *
- * These tests do not ban the pattern outright — the theme files use it
- * deliberately in ~40 places to re-skin legacy Tailwind colour classes. They
- * ban the two substrings that collide with library-generated class names.
+ * These tests do not ban the pattern outright — the theme still uses it in
+ * ~30 places for its looks (glass, badge, stat …), which the second half of
+ * the rewrite takes on (docs/TODO.md E1). They ban the two substrings that
+ * collide with library-generated class names.
+ *
+ * The legacy dark colour vocabulary (`text-white`, `bg-white/10`,
+ * `text-rose-300` …) is no longer re-skinned here at all: it was rewritten to
+ * the tokens at source on 2026-10-10, and the last block below stops it
+ * coming back — with no translation rule left, it would render raw.
  */
 
 /** The admin, parent, principal and teacher panels' stylesheets went with
@@ -63,11 +69,61 @@ describe("no attribute selector collides with library class names", () => {
     },
   );
 
-  it("and the panel still re-skins legacy colour classes this way (control)", () => {
-    // The pattern itself is legitimate and widely used here. If this drops to
-    // zero, the assertions above have stopped proving anything because the
-    // files no longer contain attribute selectors at all.
+  it("and the theme still selects this way somewhere (control)", () => {
+    // If this drops to zero, the assertions above have stopped proving
+    // anything because the files no longer contain attribute selectors at all.
     const total = files.reduce((n, f) => n + (f.css.match(/\[class\*=/g) ?? []).length, 0);
     expect(total).toBeGreaterThan(20);
+  });
+});
+
+/**
+ * The legacy dark colour vocabulary, which theme.css used to translate to the
+ * tokens at render time. Rewritten at source on 2026-10-10 (docs/TODO.md E1,
+ * measured identical in a browser except the indigo the palette ruling bans),
+ * and the translations deleted — so one written now would render raw: white
+ * text on a white card, pale amber on a light page.
+ */
+// Exactly the families theme.css translated (text-rose-400 and text-sky-300
+// it never did; they render raw today too — KNOWN_ISSUES 128).
+const LEGACY = /(^|[\s"'`])(hover:|focus:)?(text-white|bg-white\/\d+|border-white\/\d+|text-rose-(200|300)|text-emerald-(200|300|400)|text-violet-(300|400)|text-amber-(300|400)|text-blue-(300|400))(\/\d+)?(?=[\s"'`]|$)/m;
+
+function sourceFiles(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) sourceFiles(full, out);
+    else if (/\.tsx?$/.test(entry.name) && !/\.test\./.test(entry.name)) out.push(full);
+  }
+  return out;
+}
+
+describe("the legacy dark colour classes are gone from the app (E1)", () => {
+  const files = sourceFiles(join(process.cwd(), "src"));
+
+  it("reads the whole app (control)", () => {
+    expect(files.length).toBeGreaterThan(200);
+  });
+
+  it("no component asks for one", () => {
+    const offenders = files.flatMap((f) => {
+      const m = readFileSync(f, "utf8").match(LEGACY);
+      return m ? [`${f}: ${m[0].trim()}`] : [];
+    });
+    expect(offenders, `use the token instead (text-foreground, bg-muted, border-border, text-destructive, text-success, text-warning, text-primary):\n${offenders.join("\n")}`).toEqual([]);
+  });
+
+  it("CONTROL: the pattern catches each family, and not the tokens", () => {
+    for (const bad of ['"text-white"', '"p-2 bg-white/10"', '"border-white/5 x"', '"text-rose-300"', '"text-emerald-400/80"', '"hover:text-white"', '"text-violet-400"']) {
+      expect(LEGACY.test(bad), bad).toBe(true);
+    }
+    for (const good of ['"text-foreground"', '"bg-muted"', '"text-destructive"', '"text-primary-foreground"', '"bg-rose-500/10"', '"text-white-space"']) {
+      expect(LEGACY.test(good), good).toBe(false);
+    }
+  });
+
+  it("and theme.css translates none of them any more", () => {
+    const css = stripComments(readFileSync(join(process.cwd(), "src", "gurukul", "theme.css"), "utf8"));
+    expect(css).not.toMatch(/text-white|bg-white|border-white|text-(rose|emerald|violet|amber|blue)-\d/);
+    expect(css).not.toMatch(/\[class\*="(bg|text|border)-\[#/);
   });
 });

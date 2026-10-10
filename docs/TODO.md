@@ -188,7 +188,10 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
 
 ## E. Carried open from earlier sessions
 
-- **E1. `src/gurukul/theme.css`** still holds ~100 `!important` element rules
+- **E1. `src/gurukul/theme.css`** — part 1 DONE 2026-10-10 (KNOWN_ISSUES 128:
+  the legacy colour translations rewritten at source and deleted, dead rules
+  gone, 100 → 70 `!important`, measured in a browser). Part 2, the element
+  rules below, still open. It held ~100 `!important` element rules
   (every `button` weight 700 and `overflow: hidden`, every `th` 800, every `td`
   coloured, sidebar and header restyled by attribute selectors). Rewrite it
   under RULE 0 (KNOWN_ISSUES 116 item 1).

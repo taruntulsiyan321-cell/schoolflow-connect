@@ -33,8 +33,8 @@ export function SessionVerdicts({ recovery, revision }: Props) {
             )}
           >
             {recovery.outcome === "ready"
-              ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              : <AlertCircle className="w-4 h-4 text-amber-400" />}
+              ? <CheckCircle2 className="w-4 h-4 text-success" />
+              : <AlertCircle className="w-4 h-4 text-warning" />}
           </div>
           <div>
             <div className="text-sm font-bold text-foreground">
@@ -71,7 +71,7 @@ export function SessionVerdicts({ recovery, revision }: Props) {
               <div
                 className={cn(
                   "text-xl font-black tabular-nums",
-                  r.passed ? "text-emerald-400" : "text-amber-400",
+                  r.passed ? "text-success" : "text-warning",
                 )}
               >
                 {/* A rate over zero questions is absent, not 0% — the tier
@@ -103,8 +103,8 @@ export function SessionVerdicts({ recovery, revision }: Props) {
             )}
           >
             {revision.passed
-              ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              : <AlertCircle className="w-4 h-4 text-amber-400" />}
+              ? <CheckCircle2 className="w-4 h-4 text-success" />
+              : <AlertCircle className="w-4 h-4 text-warning" />}
           </div>
           <div>
             <div className="text-sm font-bold text-foreground">
@@ -137,7 +137,7 @@ export function SessionVerdicts({ recovery, revision }: Props) {
             <div
               className={cn(
                 "text-xl font-black tabular-nums",
-                revision.passed ? "text-emerald-400" : "text-amber-400",
+                revision.passed ? "text-success" : "text-warning",
               )}
             >
               {Math.round(revision.rate * 100)}%

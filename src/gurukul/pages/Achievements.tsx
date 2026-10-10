@@ -139,7 +139,7 @@ export default function Achievements() {
       {header}
       <div className="grid grid-cols-2 gap-3">
         <div className="p-4 rounded-2xl border border-border/70 bg-surface/70 text-center">
-          <div className="text-2xl font-black text-amber-400" style={{ fontFamily: "var(--font-display)" }}>
+          <div className="text-2xl font-black text-warning" style={{ fontFamily: "var(--font-display)" }}>
             {unlocked.length}
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">Badges earned</div>
@@ -177,7 +177,7 @@ export default function Achievements() {
                 key={a.code}
                 className="flex items-start gap-3 p-3 rounded-xl border border-border/70 bg-muted/30"
               >
-                <Star className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <Star className="w-4 h-4 text-warning shrink-0 mt-0.5" />
                 <div className="min-w-0">
                   <div className="text-sm font-semibold text-foreground">{a.label}</div>
                   {a.description && <div className="text-[11px] text-muted-foreground mt-0.5">{a.description}</div>}
@@ -229,7 +229,7 @@ export default function Achievements() {
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-bold text-foreground">{a.label}</div>
                       <div className="text-[11px] text-muted-foreground mt-0.5">{a.desc}</div>
-                      <div className="text-[11px] text-amber-400/80 mt-1.5">{formatEarnedDate(a.earned_at)}</div>
+                      <div className="text-[11px] text-warning mt-1.5">{formatEarnedDate(a.earned_at)}</div>
                       <div className="flex flex-wrap gap-2 mt-2">
                         <button
                           type="button"
@@ -238,7 +238,7 @@ export default function Achievements() {
                           className={cn(
                             "text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors",
                             isEquipped
-                              ? "border-amber-400/40 text-amber-300 bg-amber-400/10"
+                              ? "border-amber-400/40 text-warning bg-amber-400/10"
                               : "border-border text-muted-foreground hover:text-foreground hover:border-border",
                           )}
                         >
@@ -251,7 +251,7 @@ export default function Achievements() {
                           className={cn(
                             "text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors inline-flex items-center gap-1",
                             isFeatured
-                              ? "border-amber-400/40 text-amber-300 bg-amber-400/10"
+                              ? "border-amber-400/40 text-warning bg-amber-400/10"
                               : "border-border text-muted-foreground hover:text-foreground hover:border-border",
                           )}
                         >

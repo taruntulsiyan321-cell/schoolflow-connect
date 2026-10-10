@@ -44,7 +44,7 @@ export function RecoveryClearChapter({ sessionId, ready }: { sessionId: string; 
     const when = done.already ? null : new Date(done.next_revision_at).toLocaleDateString(undefined, { day: "numeric", month: "short" });
     return (
       <p role="status" className="mt-3 flex items-start gap-2 text-[11px] text-muted-foreground">
-        <CheckCircle2 className="mt-px h-3.5 w-3.5 shrink-0 text-emerald-400" />
+        <CheckCircle2 className="mt-px h-3.5 w-3.5 shrink-0 text-success" />
         <span>
           {done.already
             ? "This chapter is already marked recovered."

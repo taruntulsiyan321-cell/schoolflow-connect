@@ -131,7 +131,7 @@ function MistakeCard({
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-400/10 text-sky-300">AI answered</span>
               )}
               {mistake.resolved && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-400/10 text-emerald-400">Resolved</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-400/10 text-success">Resolved</span>
               )}
             </div>
             <p className="text-sm font-semibold text-foreground leading-snug"><QuestionText compact text={mistake.question} options={mistake.options} /></p>
@@ -141,7 +141,7 @@ function MistakeCard({
             title={mistake.bookmarked ? "Remove device bookmark" : "Save on this device only"}
             className="shrink-0 p-1.5 rounded-lg hover:bg-muted transition-all">
             {mistake.bookmarked
-              ? <BookmarkCheck className="w-4 h-4 text-amber-400 fill-amber-400"/>
+              ? <BookmarkCheck className="w-4 h-4 text-warning fill-amber-400"/>
               : <Bookmark className="w-4 h-4 text-muted-foreground"/>}
           </button>
         </div>
@@ -162,7 +162,7 @@ function MistakeCard({
               options and the answer are on the row itself. */}
           {mistake.askable ? (
             <button onClick={onRetry}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/25 text-violet-300 text-xs font-bold hover:bg-violet-500/25 transition-all">
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/25 text-primary text-xs font-bold hover:bg-violet-500/25 transition-all">
               <RotateCcw className="w-3 h-3"/> Retry
             </button>
           ) : (
@@ -182,7 +182,7 @@ function MistakeCard({
               type="button"
               onClick={() => onClear(mistake)}
               disabled={clearing}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-bold hover:bg-emerald-500/20 transition-all disabled:opacity-50 disabled:pointer-events-none"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-success text-xs font-bold hover:bg-emerald-500/20 transition-all disabled:opacity-50 disabled:pointer-events-none"
             >
               <CheckCircle2 className="w-3 h-3"/> {clearing ? "Clearing…" : "Clear"}
             </button>
@@ -201,7 +201,7 @@ function MistakeCard({
             <button
               type="button"
               onClick={() => onDeleteCapture?.(mistake)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs font-bold hover:bg-rose-500/20 transition-all"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/25 text-destructive text-xs font-bold hover:bg-rose-500/20 transition-all"
             >
               Delete capture
             </button>
@@ -225,7 +225,7 @@ function MistakeCard({
                 <div className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                   <XCircle className="w-3 h-3"/> Your Answer
                 </div>
-                <p className="text-xs text-rose-200 font-semibold">
+                <p className="text-xs text-destructive font-semibold">
                   {mistake.chosen !== null && mistake.options[mistake.chosen] !== undefined
                     ? mistake.options[mistake.chosen]
                     : "Not recorded"}
@@ -233,10 +233,10 @@ function MistakeCard({
               </div>
               )}
               <div className="p-3 rounded-xl bg-emerald-500/8 border border-emerald-500/20">
-                <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                <div className="text-[10px] font-bold text-success uppercase tracking-wider mb-1.5 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3"/> Correct Answer
                 </div>
-                <p className="text-xs text-emerald-200 font-semibold">
+                <p className="text-xs text-success font-semibold">
                   {mistake.correct !== null && mistake.options[mistake.correct] !== undefined
                     ? mistake.options[mistake.correct]
                     : "Unknown"}
@@ -247,7 +247,7 @@ function MistakeCard({
             {/* AI Explanation */}
             {mistake.aiExplanation ? (
               <div className="p-3 rounded-xl bg-violet-500/8 border border-violet-500/20">
-                <div className="text-[10px] font-bold text-violet-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <div className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                   <Brain className="w-3 h-3"/> AI Explanation
                 </div>
                 <ExplanationText className="text-xs text-muted-foreground" text={mistake.aiExplanation} />
@@ -401,7 +401,7 @@ function MistakePractice({
               <button key={i} onClick={() => submit(i)}
                 className={cn("w-full text-left flex items-center gap-3 p-3 rounded-xl border transition-all text-sm", cls)}>
                 <span className="w-6 h-6 rounded-lg border border-border flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">{["A","B","C","D"][i]}</span>
-                <span className={selected !== null ? (i === q.correct ? "text-emerald-300 font-semibold" : i === selected ? "text-rose-300" : "text-muted-foreground") : "text-foreground"}>{opt}</span>
+                <span className={selected !== null ? (i === q.correct ? "text-success font-semibold" : i === selected ? "text-destructive" : "text-muted-foreground") : "text-foreground"}>{opt}</span>
               </button>
             );
           })}
@@ -867,7 +867,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         <div className="space-y-2">
           {!passed && (
             <button onClick={() => setPage?.("recovery")}
-              className="w-full py-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-sm font-bold flex items-center justify-center gap-2 hover:bg-rose-500/25 transition-all">
+              className="w-full py-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-destructive text-sm font-bold flex items-center justify-center gap-2 hover:bg-rose-500/25 transition-all">
               <RefreshCw className="w-4 h-4"/> Move to Recovery
             </button>
           )}
@@ -906,7 +906,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     <div className="space-y-6 relative">
       {/* Toast */}
       {toastMsg && (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-surface border border-rose-500/30 text-rose-300 text-sm font-semibold shadow-2xl animate-in slide-in-from-right">
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-surface border border-rose-500/30 text-destructive text-sm font-semibold shadow-2xl animate-in slide-in-from-right">
           <RefreshCw className="w-4 h-4"/>
           {toastMsg}
         </div>
@@ -938,7 +938,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
               setPracticeIds(mistakes.filter(m => !m.resolved).map(m => m.id));
               setView("practice");
             }}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 text-sm font-bold hover:bg-rose-500/30 transition-all disabled:opacity-40 disabled:pointer-events-none">
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-500/20 border border-rose-500/30 text-destructive text-sm font-bold hover:bg-rose-500/30 transition-all disabled:opacity-40 disabled:pointer-events-none">
             <Play className="w-3.5 h-3.5"/> Practice All
           </button>
           </div>
@@ -1009,7 +1009,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       {/* Practice filtered mistakes */}
       {filtered.length > 0 && filtered.some(m => !m.resolved) && (
         <button onClick={() => { setPracticeIds(filtered.filter(m => !m.resolved).map(m => m.id)); setView("practice"); }}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-rose-500/30 bg-rose-500/5 text-rose-300 text-sm font-semibold hover:bg-rose-500/10 transition-all">
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-rose-500/30 bg-rose-500/5 text-destructive text-sm font-semibold hover:bg-rose-500/10 transition-all">
           <Play className="w-3.5 h-3.5"/> Practice {filtered.filter(m => !m.resolved).length} visible unresolved mistakes
         </button>
       )}

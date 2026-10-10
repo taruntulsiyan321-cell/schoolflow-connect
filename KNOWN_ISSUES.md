@@ -5609,3 +5609,47 @@ load.
    JPEG or PNG") rather than failing quietly.
 3. **The rollback leaves the bucket.** Storage files are removed through the storage API, not SQL; the rollback
    says how.
+
+## 128. `theme.css`, part 1: the legacy colour vocabulary rewritten at source — DONE 2026-10-10; part 2 open
+
+**docs/TODO.md E1.** `src/gurukul/theme.css` translated a legacy dark-theme vocabulary at render time, with
+`!important`. `text-white` became the foreground colour, `bg-white/10` muted, `border-white/5` the border, and
+`text-rose-300`, `text-emerald-400`, `text-amber-400`, `text-violet-400` and `text-blue-400` became the tokens.
+Every component that used it now asks for the token itself:
+* 63 class strings in 9 files were rewritten (`scratchpad e1/remap.cjs`, one mapping per family).
+* Every translation rule was deleted, with the rules a source survey found matching nothing at all: the hex
+  colours (`bg-[#3b5bdb]` …), the inline `rgba(…)` and `#0d0d0f` hooks, `.fab`, `.mode-card`, `.lift`,
+  `.modal`, `.flame`, `[class*="progress-bar"]`, and the `border-warning`/`-success`/`-info` re-pointings
+  nothing uses.
+* Rules on classes a library writes at run time (the recharts ones) were kept, even though no source line names
+  them.
+* The file went from 1,175 to 938 lines, and from 100 to 70 `!important`.
+
+**Measured in a browser.** The CSS was built before and after. Every rewritten class string was rendered in the
+panel's scope as a `div`, a `button` and a table cell (189 elements), and computed colour, background, border,
+weight and opacity were compared.
+* 168 are identical.
+* 18 differ by intent: the six violet strings move from indigo `#6366f1`, which the palette ruling bans, to the
+  panel's primary.
+* 3 differ for the better. One Achievements line, `text-amber-400/80`, was never caught by the theme's rule (it
+  matched only the bare class), so it had always rendered pale amber at 80% on a light page; it now uses the warning
+  token.
+* No hover class was rewritten.
+* `theme.test.ts` now fails if any translated family returns to a component or a translation returns to the
+  theme. Mutants of both are killed.
+
+**Open (part 2, and one finding):**
+1. **The element rules stay:**
+   * every `button` at weight 700 with `overflow: hidden`, and every `th` at 800;
+   * every `td`, `input` and `[class*="text-muted"]` colour and weight;
+   * every heading at 800 in one colour;
+   * the utility re-pointings (`.text-primary` and the rest, which exist to win against the element rules);
+   * `[class*="glass"]`, `[class*="badge"]` and `[class*="stat"]` looks;
+   * `.gurukul-student > div`, `aside` and `header` backgrounds.
+
+   Removing them changes how screens look — components get the weight and colour they ask for — so it needs the
+   screens seen at each width, which this session could not do (they need a signed-in student). It is its own
+   change.
+2. **`text-rose-400` (11 uses) and `text-sky-300` (2) were never translated** and render raw: a pale pink-red and a
+   light blue on light cards. They fall under the palette ruling's shadow palette; fix them with part 2's look at
+   the screens.

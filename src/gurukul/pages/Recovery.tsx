@@ -80,21 +80,21 @@ function StateTag({ item }: { item: QueueItem }) {
   // already showing an open-mistake count does not, so it renders nothing.
   if (item.in_recovery) {
     return (
-      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300">
+      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-primary">
         In recovery
       </span>
     );
   }
   if (item.state === "revision_failed") {
     return (
-      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-300">
+      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-destructive">
         Revision failed
       </span>
     );
   }
   if (item.state === "recovered") {
     return (
-      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
+      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-success">
         Recovered
       </span>
     );
@@ -180,7 +180,7 @@ function RecoveryCard({
           </p>
           <button
             onClick={onClearBook}
-            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-bold hover:bg-amber-500/20 transition-all"
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-warning text-xs font-bold hover:bg-amber-500/20 transition-all"
           >
             <BookOpen className="w-3 h-3" /> Open these in your mistake book
           </button>
@@ -222,7 +222,7 @@ function RecoveryCard({
           <button
             onClick={onStart}
             disabled={starting}
-            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-rose-500/15 border border-rose-500/25 text-rose-300 text-xs font-bold hover:bg-rose-500/25 transition-all disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-rose-500/15 border border-rose-500/25 text-destructive text-xs font-bold hover:bg-rose-500/25 transition-all disabled:opacity-50"
           >
             {starting
               ? <><Loader2 className="w-3 h-3 animate-spin" /> Building your session…</>
@@ -469,7 +469,7 @@ export default function Recovery() {
 
       {items.length === 0 ? (
         <GlassCard className="p-8 text-center">
-          <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+          <CheckCircle2 className="w-8 h-8 text-success mx-auto mb-2" />
           <p className="text-sm font-semibold text-foreground">Nothing to recover</p>
           <p className="text-xs text-muted-foreground mt-1">
             Mistakes you make in practice collect here by chapter. Recovery opens once a
