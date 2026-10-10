@@ -5491,3 +5491,31 @@ afterwards (checked). Computed in the view instead, it cannot drift from the opt
    the drill. This keeps the reading conservative; widen it only with a measured sample.
 3. **Only the two types the to-do names drive a drill.** The other seven types (conceptual gap, recall, formula
    error and the rest) drive none until the owner says what each should drill.
+
+## 125. A revision calendar for the next two weeks — BUILT 2026-10-10; and the test suite's timing budgets
+
+**docs/TODO.md C6.** Revision shows the next 14 days as two rows of seven. Each day carries its count of checks
+due, and the day picked lists its chapters. Overdue checks sit apart, as a button that opens first when there are
+any; checks due after the two weeks are counted. Its data is the same `chapter_state.next_revision_at` the cards
+read. `daysUntil` is now the one day reckoning, in the student's own calendar and safe across a clock change; the
+cards' "Today / Tomorrow / 3 days" label and the calendar both count with it, so they cannot disagree about
+which day a check falls on. No database change.
+
+**Measured:** 5 mutants are killed: overdue folded into today, the last day dropped, the hour counted instead of
+the day, opening on today regardless, and the after-two-weeks count hidden.
+
+**The suite's timing budgets (found while gating this).** Full runs failed 5 tests in 4 files that pass alone, and
+once again in PracticeGuessing. The causes:
+* The heaviest test, a practice session walked over three questions, takes 1.8 s alone but passed vitest's 5-second
+  default with every core busy.
+* A timed-out test keeps running and clicks through the next test's screen, so one timeout failed two tests.
+* testing-library's waits (`findBy*`, `waitFor`) give up after 1 s.
+
+Both budgets are raised in their one place each: `testTimeout: 20_000` in `vitest.config.ts`, and
+`asyncUtilTimeout: 5_000` in `src/test/setup.ts`. A wait for something that never comes still fails, just later.
+Re-measured: three full runs in a row, 1,704 of 1,704 each, and the calendar and mock-result mutants are still
+killed under the new budgets.
+
+**Open:**
+1. **No phone-width look in a browser.** Revision needs a signed-in student, and this session does not sign in to
+   production. Seven columns at 343 px leaves each day about 45 px, which fits; it is not measured.

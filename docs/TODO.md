@@ -170,7 +170,7 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
   (Subjects & Chapters → Your whole syllabus) to a starter session.
 - **~~C5. Mistake types drive practice~~ — DONE 2026-10-09 (20261154000000, KNOWN_ISSUES 124)** — "Calculation error" → numerical
   drills; "Misread the question" → statement and assertion–reason questions.
-- **C6. A revision calendar** — what is due over the next two weeks, not only
+- **~~C6. A revision calendar~~ — DONE 2026-10-10 (KNOWN_ISSUES 125)** — what is due over the next two weeks, not only
   today.
 - **C7. Practice in the real exam mix by default** — sets follow A1's blueprint
   so students meet assertion–reason and match regularly, not 5% of the time.

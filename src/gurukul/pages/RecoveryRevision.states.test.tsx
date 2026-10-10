@@ -165,7 +165,8 @@ describe("Revision", () => {
     let finish: (rows: unknown[]) => void = () => {};
     h.engine.getRevisionHistory.mockReturnValue(new Promise((r) => { finish = r; }));
     page(<Revision />);
-    await screen.findByText("Circles");
+    // On its card and in the calendar's overdue list: either says the queue is read.
+    await screen.findAllByText("Circles");
     expect(screen.getByText("Loading…")).toBeInTheDocument();
     expect(screen.queryByText(/No revision checks taken yet/)).toBeNull();
     finish([]);

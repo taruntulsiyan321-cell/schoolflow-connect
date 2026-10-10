@@ -59,6 +59,8 @@ export interface RevItem {
   chapter: string;
   subject: string;
   dueIn: string;
+  /** chapter_state.next_revision_at: when the next check is due. The calendar lays these out by day. */
+  dueDate: string | null;
   /** Passes in a row so far. */
   passes: number;
   /** How many are needed before the chapter goes solid. */
@@ -74,26 +76,69 @@ export interface RevItem {
   state: ChapterStateRow["state"];
 }
 
+/**
+ * Whole days from today to a due date, in the student's own calendar: 0 is
+ * today, negative is overdue. The one reading of a due date — the card's label
+ * and the calendar both count with it, so they cannot disagree about which day
+ * a check falls on. Null for a date that cannot be read.
+ */
+export function daysUntil(dueDate: string, today: Date = new Date()): number | null {
+  const due = new Date(dueDate);
+  if (Number.isNaN(due.getTime())) return null;
+  const start = new Date(today);
+  start.setHours(0, 0, 0, 0);
+  due.setHours(0, 0, 0, 0);
+  // Rounded, so a day with a clock change (23 or 25 hours) still counts as one.
+  return Math.round((due.getTime() - start.getTime()) / 86400000);
+}
+
 function dueLabelFromDate(dueDate: string | null): string {
   // Null now means "never scheduled", not "solid": passing three checks drops
   // the chapter to the long interval and it keeps a date. A solid chapter
   // reads as a date like any other, which is the honest thing — forgetting
   // did not stop because the student passed three checks.
   if (!dueDate) return "Not scheduled";
-  try {
-    const due = new Date(dueDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    due.setHours(0, 0, 0, 0);
-    const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
-    if (diff < 0) return "Now";
-    if (diff === 0) return "Today";
-    if (diff === 1) return "Tomorrow";
-    if (diff <= 7) return `${diff} days`;
-    return due.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  } catch {
-    return "—";
+  const diff = daysUntil(dueDate);
+  if (diff === null) return "—";
+  if (diff < 0) return "Now";
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Tomorrow";
+  if (diff <= 7) return `${diff} days`;
+  return new Date(dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+/** How far ahead the calendar looks (C6): two weeks, not only today. */
+export const REVISION_CALENDAR_DAYS = 14;
+
+export type RevisionDay = { offset: number; date: Date; items: RevItem[] };
+export type RevisionCalendar = {
+  /** Due before today: still to do, so shown, not dropped. */
+  overdue: RevItem[];
+  /** Today and the days after it, REVISION_CALENDAR_DAYS of them, each with what is due that day. */
+  days: RevisionDay[];
+  /** Checks due after the calendar's last day. */
+  later: number;
+};
+
+/** What is due on each of the next REVISION_CALENDAR_DAYS days (docs/TODO.md C6), in the server's order within a day. */
+export function revisionCalendar(items: ReadonlyArray<RevItem>, today: Date = new Date()): RevisionCalendar {
+  const start = new Date(today);
+  start.setHours(0, 0, 0, 0);
+  const days: RevisionDay[] = Array.from({ length: REVISION_CALENDAR_DAYS }, (_, i) => ({
+    offset: i,
+    date: new Date(start.getFullYear(), start.getMonth(), start.getDate() + i),
+    items: [],
+  }));
+  const overdue: RevItem[] = [];
+  let later = 0;
+  for (const item of items) {
+    const d = item.dueDate ? daysUntil(item.dueDate, today) : null;
+    if (d === null) continue;
+    if (d < 0) overdue.push(item);
+    else if (d < REVISION_CALENDAR_DAYS) days[d].items.push(item);
+    else later += 1;
   }
+  return { overdue, days, later };
 }
 
 /** Due now: overdue or due today — the labels dueLabelFromDate gives those two. */
@@ -111,6 +156,7 @@ function toRevItem(r: ChapterStateRow): RevItem | null {
     chapter,
     subject,
     dueIn: dueLabelFromDate(r.next_revision_at),
+    dueDate: r.next_revision_at,
     passes: r.consecutive_passes,
     // REVISION_STAGES_TO_SOLID, not a literal 3. The number lives in
     // recovery_constants, is re-exported by the TS constants module, and is

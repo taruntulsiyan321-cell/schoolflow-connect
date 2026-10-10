@@ -14,6 +14,7 @@ import {
   Play, Zap
 } from "lucide-react";
 import { toErrorMessage } from "@/lib/presentation";
+import { RevisionCalendar } from "@/components/student/RevisionCalendar";
 
 function DueTag({ dueIn }: { dueIn: string }) {
   const cfg =
@@ -322,6 +323,9 @@ export default function Revision() {
           </div>
         </button>
       </div>
+
+      {/* C6: what is due over the next two weeks, not only today. */}
+      {REVISION_ITEMS.length > 0 && <RevisionCalendar items={REVISION_ITEMS} />}
 
       {/* Filter tabs */}
       <div>
