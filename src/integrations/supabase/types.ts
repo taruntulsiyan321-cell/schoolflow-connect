@@ -13136,6 +13136,7 @@ export type Database = {
         Returns: undefined
       }
       rpc_set_my_display_name: { Args: { _full_name: string }; Returns: string }
+      rpc_set_profile_photo: { Args: { _path?: string }; Returns: string }
       rpc_start_practice_session: {
         Args: {
           _chapter: string

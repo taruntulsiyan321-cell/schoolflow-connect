@@ -10,8 +10,9 @@ import type { PageKey } from "@/gurukul/nav";
  * the DOM here; the browser check measures what each width shows.
  */
 
-const notes = vi.hoisted(() => ({ unread: 0 }));
-vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ signOut: vi.fn() }) }));
+const notes = vi.hoisted(() => ({ unread: 0, photo: null as string | null }));
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "u1" }, signOut: vi.fn() }) }));
+vi.mock("@/hooks/useProfilePhoto", () => ({ useProfilePhoto: () => ({ url: notes.photo, hasPhoto: Boolean(notes.photo) }) }));
 vi.mock("@/hooks/useNotifications", () => ({ useNotifications: () => ({ unread: notes.unread }) }));
 
 import Layout from "./Layout";
@@ -31,6 +32,34 @@ function show(page: PageKey) {
 
 beforeEach(() => {
   notes.unread = 0;
+  notes.photo = null;
+});
+
+describe("the student's photo where the initials were (D1)", () => {
+  it("shows the photo in the top bar, the account menu and the Account tab", () => {
+    notes.photo = "https://signed.example/me.jpg";
+    const { bottom } = show("dashboard");
+    fireEvent.click(screen.getByRole("button", { name: "Your account" }));
+    const photos = screen.getAllByTestId("student-photo");
+    // Top bar, menu, Account tab.
+    expect(photos).toHaveLength(3);
+    for (const p of photos) expect(p).toHaveAttribute("src", "https://signed.example/me.jpg");
+    expect(within(bottom).getByRole("button", { name: /Account/ })).not.toHaveTextContent("AS");
+  });
+
+  it("CONTROL: the initials, with no photo", () => {
+    show("dashboard");
+    expect(screen.queryByTestId("student-photo")).toBeNull();
+    expect(screen.getByRole("button", { name: "Your account" })).toHaveTextContent("AS");
+  });
+
+  it("falls back to the initials when the photo will not load", () => {
+    notes.photo = "https://signed.example/expired.jpg";
+    show("dashboard");
+    const top = within(screen.getByRole("button", { name: "Your account" })).getByTestId("student-photo");
+    fireEvent.error(top);
+    expect(screen.getByRole("button", { name: "Your account" })).toHaveTextContent("AS");
+  });
 });
 
 describe("the sidebar", () => {

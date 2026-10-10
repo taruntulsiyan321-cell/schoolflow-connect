@@ -177,7 +177,7 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
 
 ## D. Profile and Nova
 
-- **D1. Profile photo** (owner 2026-10-03: "this CA is looking very bad").
+- **~~D1. Profile photo~~ — DONE 2026-10-10 (20261156000000, KNOWN_ISSUES 127)** (owner 2026-10-03: "this CA is looking very bad").
   Upload, crop to a square, stored privately, shown wherever the initials are
   now (top bar, bottom bar's Account tab, account menu, Profile card); remove
   or replace; works from the phone's camera and gallery in the Android app.

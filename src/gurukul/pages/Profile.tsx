@@ -12,7 +12,10 @@ import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { useGurukulAcademicIdentity } from "@/gurukul/StudentContext";
 import { Link } from "react-router-dom";
 import { LEGAL_ENTITY } from "@/lib/legal";
-import { toPersonName } from "@/lib/presentation/people";
+import { toInitials, toPersonName } from "@/lib/presentation/people";
+import { StudentAvatar } from "@/components/student/StudentAvatar";
+import { ProfilePhotoEditor } from "@/components/student/ProfilePhotoEditor";
+import { useProfilePhoto } from "@/hooks/useProfilePhoto";
 
 /** One date format for this screen. */
 function formatDayMonthYear(iso: string) {
@@ -41,6 +44,7 @@ export default function Profile({
   const { ctx, ready, studentId } = useAcademicContext();
   const { examName, examCode } = useGurukulAcademicIdentity();
   const { earned, loading: badgesLoading } = useStudentBadges(user?.id);
+  const photo = useProfilePhoto(user?.id);
   const [name, setName] = useState("Student");
   const [loading, setLoading] = useState(true);
   const [level, setLevel] = useState(1);
@@ -172,15 +176,13 @@ export default function Profile({
       {header}
       <GlassCard glow="blue" className="p-6">
         <div className="flex items-start gap-4">
+          {/* The photo, or the initials — worked out by toInitials, as the top bar
+              does; this card used to slice the name itself. */}
           <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-black text-foreground shrink-0"
+            className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center text-xl font-black text-foreground shrink-0"
             style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8))" }}
           >
-            {name
-              .split(" ")
-              .map((w) => w[0])
-              .slice(0, 2)
-              .join("")}
+            <StudentAvatar url={photo.url} initials={toInitials(name)} iconClassName="w-6 h-6" />
           </div>
           <div className="flex-1 min-w-0">
             <h2
@@ -204,6 +206,7 @@ export default function Profile({
                 progressPct={levelProgressPct}
               />
             </div>
+            <ProfilePhotoEditor hasPhoto={photo.hasPhoto} onSave={photo.save} onRemove={photo.remove} />
             {featured.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {featured.map((code) => (

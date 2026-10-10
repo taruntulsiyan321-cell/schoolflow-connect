@@ -5565,3 +5565,47 @@ approved blueprint's mix of forms.
 2. **Assertion–reason is not in the approved CUET blueprint** (A1), so the draw treats it as "other forms" and
    serves it only once direct questions run out. The to-do line, written before A1, named it; the blueprint is
    what the paper sets.
+
+## 127. A profile photo — BUILT and LIVE 2026-10-10 (20261156000000); what is open
+
+**docs/TODO.md D1.** A student can add a photo where their initials were: on the top bar, in the account menu, on
+the phone's Account tab and on the Profile card. The initials stay the fallback, including when a photo will not
+load.
+* **On Profile:** "Add a photo" / "Change photo" opens the gallery or files. "Take a photo" asks for the front
+  camera (`capture="user"`) and is offered only where there is one: the Android app, or a touch screen. The choice
+  is cropped to a square in the app (drag to move, zoom up to 3×) and saved as a 512-pixel JPEG. "Remove photo"
+  brings the initials back.
+* **Stored privately:** the `profile-photos` bucket is private, JPEG only, 1 MB cap, and each account may read,
+  add and remove only in its own folder. `profiles.photo_url` holds the object key (now commented as such), and a
+  CHECK holds it to the owner's folder. `rpc_set_profile_photo` sets it only for a file the caller uploaded to
+  their own folder. The photo is shown through a one-hour signed link.
+* **In order:** a new photo is uploaded, then named, then the old file removed. A refused save removes the new
+  file, so the profile never names a missing file and nothing is left stray.
+* **One answer everywhere:** one store (`useProfilePhoto`) feeds every place, so a photo saved on Profile shows in
+  the top bar at once. One component (`StudentAvatar`) decides photo, initials or figure. The Profile card had
+  worked out its initials by slicing the name itself; it now uses `toInitials`, as the top bar does.
+
+**Measured:**
+* The migration's proof, as two real accounts, rolled back:
+  * the bucket is private, capped and JPEG-only, with three policies fenced to the owner's folder;
+  * A uploads into A's folder and is refused B's;
+  * the function refuses B's folder ("photo_not_yours") and a never-uploaded key ("photo_not_uploaded"), each
+    named;
+  * A's direct edit of their own row into B's folder is refused by the CHECK;
+  * B cannot see A's file, while A can;
+  * clearing works;
+  * anon cannot call it.
+* 5 SQL mutants are refused, each by its own check. The first version let one pass only because a different error
+  escaped; the proof now catches any error and names it. The round trip passes.
+* 16 client mutants are killed. One of them, a one-render leak of the last account's photo to the next account,
+  needed a test that records every render.
+
+**Open:**
+1. **Not seen on a phone or in a browser.** The screens need a signed-in student, and this session does not sign
+   in to production. The camera path in the Android app is reasoned, not measured. The app does not declare the
+   CAMERA permission, and Capacitor's web view then launches the camera for a `capture` input without asking for
+   one. Try it once on the device.
+2. **A photo from an iPhone's HEIC library** cannot be opened by most browsers. The crop dialog says so ("Choose a
+   JPEG or PNG") rather than failing quietly.
+3. **The rollback leaves the bucket.** Storage files are removed through the storage API, not SQL; the rollback
+   says how.

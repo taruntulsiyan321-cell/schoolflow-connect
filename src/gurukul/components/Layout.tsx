@@ -8,6 +8,8 @@ import { FILLS_SCREEN, NAV_GROUPS, PAGE_TITLE, groupOf } from "@/gurukul/nav";
 import { EMPTY_STUDENT, type GurukulStudentProfile } from "@/gurukul/emptyStudent";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useProfilePhoto } from "@/hooks/useProfilePhoto";
+import { StudentAvatar } from "@/components/student/StudentAvatar";
 import { cn, XPBar, EASE_OUT, springSnappy } from "./shared";
 import {
   Home, BookOpen, Brain,
@@ -41,11 +43,6 @@ const HEAD_ICON: Record<Exclude<NavGroupKey, "account">, ReactNode> = {
   progress: <BarChart2 className="w-5 h-5"/>,
 };
 
-/** The student's initials, or a plain figure until they are known — never a made-up pair. */
-function Initials({ avatar, className }: { avatar: string; className: string }) {
-  return avatar ? <>{avatar}</> : <User className={className} aria-hidden />;
-}
-
 /** The unread count, wherever Notifications is offered. */
 function UnreadCount({ unread, className }: { unread: number; className?: string }) {
   if (unread <= 0) return null;
@@ -76,7 +73,9 @@ export default function Layout({
   /** When false, XP/level chrome shows a neutral placeholder (not Level 1 as truth). */
   progressionReady?: boolean;
 }) {
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  // The student's photo where the initials were (D1); the initials when there is none.
+  const { url: photoUrl } = useProfilePhoto(user?.id);
   const navigate = useNavigate();
   const { unread } = useNotifications();
   const student = { ...EMPTY_STUDENT, ...profile };
@@ -244,7 +243,7 @@ export default function Layout({
                   whileTap={reduceMotion ? undefined : { scale: 0.92 }}
                   onClick={() => setProfileOpen(o => !o)}
                   className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-primary-foreground transition-all ring-2 ring-offset-2 ring-offset-background",
+                    "w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-black text-primary-foreground transition-all ring-2 ring-offset-2 ring-offset-background",
                     profileOpen ? "ring-primary" : "ring-transparent hover:ring-border",
                   )}
                   style={{background:"hsl(var(--primary))"}}
@@ -252,7 +251,7 @@ export default function Layout({
                   aria-haspopup="menu"
                   aria-expanded={profileOpen}
                 >
-                  <Initials avatar={student.avatar} className="w-3.5 h-3.5"/>
+                  <StudentAvatar url={photoUrl} initials={student.avatar} iconClassName="w-3.5 h-3.5"/>
                 </motion.button>
 
                 {createPortal(
@@ -272,9 +271,9 @@ export default function Layout({
                         the menu under Account; one door to each. */}
                     <div className="px-4 py-4 border-b border-border">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-primary-foreground shrink-0"
+                        <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-sm font-black text-primary-foreground shrink-0"
                           style={{background:"hsl(var(--primary))"}}>
-                          <Initials avatar={student.avatar} className="w-4 h-4"/>
+                          <StudentAvatar url={photoUrl} initials={student.avatar} iconClassName="w-4 h-4"/>
                         </div>
                         <div className="min-w-0">
                           <div className="text-sm font-bold text-foreground truncate">{student.name}</div>
@@ -405,11 +404,11 @@ export default function Layout({
                         // Sits on a solid hsl(var(--primary)) circle, so it needs the
                         // on-primary colour; text-foreground gave near-black on teal (2.8:1).
                         className={cn(
-                          "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-primary-foreground",
+                          "w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-black text-primary-foreground",
                           active && "ring-2 ring-primary ring-offset-1 ring-offset-background",
                         )}
                         style={{background:"hsl(var(--primary))"}}>
-                        <Initials avatar={student.avatar} className="w-3 h-3"/>
+                        <StudentAvatar url={photoUrl} initials={student.avatar} iconClassName="w-3 h-3"/>
                       </span>
                     ) : HEAD_ICON[g.key]}
                     {g.key === "account" && <UnreadCount unread={unread} className="absolute -right-2.5 -top-1.5"/>}
