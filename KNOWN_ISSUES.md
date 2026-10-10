@@ -5519,3 +5519,49 @@ killed under the new budgets.
 **Open:**
 1. **No phone-width look in a browser.** Revision needs a signed-in student, and this session does not sign in to
    production. Seven columns at 343 px leaves each day about 45 px, which fits; it is not measured.
+
+## 126. Practice in the real exam's mix, by default — BUILT and LIVE 2026-10-10 (20261155000000); what is open
+
+**docs/TODO.md C7.** A subject, chapter, topic or custom practice session for an exam account is drawn in the
+approved blueprint's mix of forms.
+* **The mix:** `rpc_exam_form_mix(subject)` reads it under the student's choices. A choice not made leaves only the
+  shares every paper has.
+* **One reading of it:** `_blueprint_forms(exam, subject, options)` is the one reading of a subject's form shares,
+  and `_mock_targets` reads it too, so the mock paper and practice cannot disagree.
+* **The draw** (`drawInMix`, `practiceDraw.ts`): each non-direct form gets its rounded share of the session from
+  questions the student has **never** answered, so the few there are don't repeat every session. The rest is
+  direct questions not met, then other forms not met, then the longest-ago repeats. Following the mix never makes a
+  session shorter, and the fill doesn't push forms past their share while direct questions remain.
+* **Where it doesn't apply:** a school account gets `{}` and draws as before. So do a drill (C5), which chose its
+  forms itself, and a failed read of the mix, which warns and draws without it, as a failed last-seen read does.
+
+**Measured:**
+* The migration's proof: the mock's form targets still come to a full paper for every choice, and an unmade choice
+  is still refused. A CUET student gets exactly the blueprint's Accountancy shares (sum 50); a school account gets
+  `{}`; anon cannot call it.
+* 4 SQL mutants are refused, and the round trip passes. One mutant was first written with a JavaScript `$$`
+  replacement that corrupted the SQL rather than testing the proof, and was rewritten until it was refused by its
+  own check.
+* 5 draw mutants and the mix reader's 5 cases pass.
+* Live, as exam account 095998bc:
+  * Accountancy {mcq 24, statements 5, match 5, sequence 6, case_based 10}.
+  * Business Studies {26, 4, 5, 5, 10}.
+  * Mathematics with Section B not chosen {13, 1, 1}.
+  * "Mixed" {}.
+
+**Found while gating it:**
+1. **The stale-columns lint flagged `_mock_targets`.** It reads aliases function-wide, and the new query reused
+   `b`, which already named `exam_blueprint_chapters`. The function worked, but one alias for two tables is a
+   reading trap. It was renamed `bf`, and the one function was re-applied live with the proof re-run. Live equals
+   the file by md5 (23df05a5…).
+2. **Four practice-loader test stubs** told the question-text fetch from a pool read by
+   `select.includes("question")`. The pool read now names `question_format`, so two suites failed on every test.
+   All four now share `selectsQuestionText` (`src/test/bankStub.ts`), which matches the column itself.
+
+**Open:**
+1. **The bank holds few non-direct questions:** CUET Accountancy has match 14, sequence 7, case-based 3 and
+   statements 8. A student meets them all in their first sessions, and practice is then direct questions until the
+   bank grows. That is question-bank work, paused by the owner.
+2. **Assertion–reason is not in the approved CUET blueprint** (A1), so the draw treats it as "other forms" and
+   serves it only once direct questions run out. The to-do line, written before A1, named it; the blueprint is
+   what the paper sets.

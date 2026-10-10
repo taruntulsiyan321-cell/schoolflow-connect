@@ -9,6 +9,7 @@ import { MemoryRouter } from "react-router-dom";
  */
 
 const listBankQuestions = vi.fn();
+const formMix = vi.fn();
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ session: { access_token: "t" } }) }));
 vi.mock("@/academic", async (importOriginal) => {
@@ -24,6 +25,7 @@ vi.mock("@/academic", async (importOriginal) => {
     PracticeService: {
       ...actual.PracticeService,
       listBankQuestions: (...a: unknown[]) => listBankQuestions(...a),
+      formMix: (...a: unknown[]) => formMix(...a),
       start: async () => "sid-1",
       recordAttempt: vi.fn(),
     },
@@ -54,6 +56,8 @@ describe("Practice — a mistake type's drill", () => {
   beforeEach(() => {
     listBankQuestions.mockReset();
     listBankQuestions.mockResolvedValue([QUESTION]);
+    formMix.mockReset();
+    formMix.mockResolvedValue({ mcq: 24, case_based: 10 });
   });
 
   it("a calculation drill asks for questions worked out to a figure", async () => {
@@ -69,6 +73,18 @@ describe("Practice — a mistake type's drill", () => {
   it("CONTROL: a session with no drill narrows by neither", async () => {
     const opts = await run(BASE);
     expect(opts).toMatchObject({ numberAnswers: false, forms: null });
+  });
+
+  it("an ordinary session is drawn in the real paper's mix for its subject (C7)", async () => {
+    const opts = await run(BASE);
+    expect(formMix).toHaveBeenCalledWith(expect.anything(), "Accountancy");
+    expect(opts.formMix).toEqual({ mcq: 24, case_based: 10 });
+  });
+
+  it("a drill is not: it already chose its forms (C7)", async () => {
+    const opts = await run({ ...BASE, drill: MISTAKE_DRILLS.misread_question });
+    expect(formMix).not.toHaveBeenCalled();
+    expect(opts.formMix).toBeNull();
   });
 
   it("says what the drill looked for when the bank has none of it in the subject", async () => {

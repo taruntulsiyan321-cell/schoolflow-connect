@@ -172,7 +172,7 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
   drills; "Misread the question" → statement and assertion–reason questions.
 - **~~C6. A revision calendar~~ — DONE 2026-10-10 (KNOWN_ISSUES 125)** — what is due over the next two weeks, not only
   today.
-- **C7. Practice in the real exam mix by default** — sets follow A1's blueprint
+- **~~C7. Practice in the real exam mix by default~~ — DONE 2026-10-10 (20261155000000, KNOWN_ISSUES 126)** — sets follow A1's blueprint
   so students meet assertion–reason and match regularly, not 5% of the time.
 
 ## D. Profile and Nova

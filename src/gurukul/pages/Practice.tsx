@@ -1387,6 +1387,7 @@ async function loadSessionQuestions(
     default:
       // config.topic is a topic id from the picker, or a topic NAME from a
       // ?topic= link; listBankQuestions narrows each its own way.
+      // C7: in the real paper's mix of forms, unless a drill chose the forms.
       return PracticeService.listBankQuestions(ctx, {
         subject: config.subject,
         chapter: config.chapter,
@@ -1395,6 +1396,7 @@ async function loadSessionQuestions(
         limit: config.qCount,
         forms: config.drill?.forms ?? null,
         numberAnswers: config.drill?.numberAnswers ?? false,
+        formMix: config.drill ? null : await PracticeService.formMix(ctx, config.subject),
       });
   }
 }

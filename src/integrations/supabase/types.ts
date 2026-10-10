@@ -10896,6 +10896,13 @@ export type Database = {
         }
         Returns: undefined
       }
+      _blueprint_forms: {
+        Args: { _exam: string; _options: Json; _subject: string }
+        Returns: {
+          form: string
+          questions: number
+        }[]
+      }
       _brought_question_askable: {
         Args: { _correct_index: number; _options: Json }
         Returns: boolean
@@ -12501,6 +12508,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      rpc_exam_form_mix: { Args: { _subject: string }; Returns: Json }
       rpc_exam_paper: { Args: never; Returns: Json }
       rpc_fill_paper_section_from_bank: {
         Args: { _bank_ids?: string[]; _section_id: string }

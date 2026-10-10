@@ -7,6 +7,7 @@
  * them would pass every assertion here against a pool with no years in it.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { selectsQuestionText } from "@/test/bankStub";
 
 type Row = {
   id: string; subject: string; chapter: string; topic_id: string | null; topics: null;
@@ -45,7 +46,7 @@ vi.mock("../repository/base", () => {
     self.range = (a: number, b: number) => { range = [a, b]; return self; };
     self.then = (resolve: (v: unknown) => unknown) => {
       const rows = bank.filter((r) => keep.every((k) => k(r)));
-      if (select.includes("question")) {
+      if (selectsQuestionText(select)) {
         return resolve({ data: rows.map((r) => ({ id: r.id, difficulty: "medium", question: `Q ${r.id}`, options: ["a", "b"] })), error: null });
       }
       const [a, b] = range ?? [0, rows.length - 1];

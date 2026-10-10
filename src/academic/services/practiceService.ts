@@ -48,7 +48,7 @@ import {
 } from "@/lib/practiceAnalysisSnapshot";
 import { answerToIndex } from "./answerText";
 import { listCaptureQuestionsByIds } from "./screenCaptureService";
-import { drawFreshFirst, lastSeenFromAttempts, type LastSeen } from "./practiceDraw";
+import { drawInMix, lastSeenFromAttempts, type LastSeen } from "./practiceDraw";
 
 export type { CurriculumScope };
 export type AcademicTermRef = TaxonomyTermRef;
@@ -1778,6 +1778,28 @@ export const PracticeService = {
     return lastSeenFromAttempts(data ?? []);
   },
 
+  /**
+   * The real paper's mix of forms for a subject, for this student
+   * (rpc_exam_form_mix, C7): question counts per form, or null when there is
+   * none to follow — a school account, no subject, "Mixed". A failed read is
+   * a session drawn without the mix, as a failed last-seen read is drawn
+   * without that: the questions are still right, only their spread is lost.
+   */
+  async formMix(ctx: ServiceContext, subject: string | null | undefined): Promise<Record<string, number> | null> {
+    if (!subject || subject === "Mixed") return null;
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client.rpc("rpc_exam_form_mix", { _subject: subject });
+    if (error) {
+      console.warn("[practice] could not read the exam's form mix; drawing without it", error);
+      return null;
+    }
+    const mix: Record<string, number> = {};
+    for (const [form, n] of Object.entries((data ?? {}) as Record<string, unknown>)) {
+      if (typeof n === "number" && Number.isFinite(n) && n > 0) mix[form] = n;
+    }
+    return Object.keys(mix).length > 0 ? mix : null;
+  },
+
   async listBankQuestions(
     ctx: ServiceContext,
     opts: {
@@ -1794,6 +1816,8 @@ export const PracticeService = {
       forms?: ReadonlyArray<string> | null;
       /** Only questions answered with a figure (answers_are_numbers) — a drill (C5). */
       numberAnswers?: boolean;
+      /** The real paper's mix of forms to draw in (formMix, C7); null draws plainly. */
+      formMix?: Readonly<Record<string, number>> | null;
       limit?: number;
       pyqOnly?: boolean;
       /** Previous Year Questions — restrict to a single exam year. */
@@ -1926,7 +1950,7 @@ export const PracticeService = {
       const narrowTopicName = narrowToLabels && !byIds && topicName !== null;
       let query = studentBankQuery(
         client,
-        `id, subject, chapter, topic_id, topics${narrowTopicName ? "!inner" : ""}(name)`,
+        `id, subject, chapter, topic_id, question_format, topics${narrowTopicName ? "!inner" : ""}(name)`,
         scope,
         classLevel,
         { subject: opts.subject, activeOnly: applyActiveFilter, withCount, previousYearOnly: opts.pyqOnly },
@@ -2029,6 +2053,7 @@ export const PracticeService = {
       subject: string;
       chapter: string | null;
       topic_id: string | null;
+      question_format: string | null;
       topics: { name: string | null } | null;
     };
 
@@ -2109,7 +2134,7 @@ export const PracticeService = {
     // (practiceDraw.ts). A list asked for by id is served as asked.
     const drawn = byIds
       ? rows.slice(0, limit)
-      : drawFreshFirst(rows, await this.lastSeenBankQuestions(ctx), limit);
+      : drawInMix(rows, await this.lastSeenBankQuestions(ctx), limit, opts.formMix ?? null, (r) => r.question_format);
     if (drawn.length === 0) return [];
 
     // The questions themselves, for the ones drawn and no others — and NO ANSWER.

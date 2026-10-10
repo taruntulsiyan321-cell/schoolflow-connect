@@ -15,6 +15,7 @@
  * targets are matched in the browser after the pool is read.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { selectsQuestionText } from "@/test/bankStub";
 
 type Row = { id: string; subject: string; chapter: string; topic_id: string; topics: { name: string } };
 
@@ -55,7 +56,7 @@ vi.mock("../repository/base", () => {
     self.range = (a: number, b: number) => { calls.ranges.push([a, b]); range = [a, b]; return self; };
     self.in = (col: string, values: string[]) => { if (col === "id") ids = values; return self; };
     self.then = (resolve: (v: unknown) => unknown) => {
-      if (select.includes("question")) {
+      if (selectsQuestionText(select)) {
         // The question text, for the drawn ids.
         calls.textFetches.push(ids ?? []);
         const rows = pool.filter((r) => (ids ?? []).includes(r.id)).map((r) => ({
