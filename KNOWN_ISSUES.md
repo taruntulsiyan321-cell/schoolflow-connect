@@ -5830,3 +5830,15 @@ transaction that ALTERed 104 tables.
 * `no_primary_key` (3): two are backups a migration's rollback restores from (`*_pre_20260925110000`), and one is a
   merge log.
 * `auth_leaked_password_protection`: an Auth setting on the dashboard (the owner's). Sign-in is by mobile OTP.
+
+## 132. The test suite was calling production — STOPPED 2026-10-13; what is open
+
+Every full `vitest` run sent a few hundred anonymous requests to live Supabase: 71 tests in 10 files (six
+`Analysis.*`, three `Practice*`, `CustomPracticeUpload.modes`) left `useWeakChapters`, `useSyllabusMap`,
+`PracticeService.formMix` or `usePremiumStatus` unmocked. The live error log's bursts of "permission denied for
+function rpc_*" and "invalid input syntax for type uuid: \"u\"" matched the suite's run times minute for minute.
+`src/test/setup.ts` now answers every absolute http(s) request in a test with a network failure; the whole suite
+passed with it (1,750/1,750) before it was made permanent.
+
+**Open:** those 71 tests now run through their pages' failure paths for the unmocked loaders. Mock the four hooks
+in the 10 files, then make the guard FAIL a test that reaches the network, so a new leak cannot pass silently.
