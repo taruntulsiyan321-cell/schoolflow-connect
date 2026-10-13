@@ -216,9 +216,6 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
   130): `npm run typecheck` checks them at Deno's strictness; the 17 errors are
   fixed, one of them a budget outage reported as a spent budget. ai-gateway
   deployed.
-- **E7. At the next deploy of each AI function:** it takes the
-  `reasoningBudget.ts` change and the corrected headers, and the drift baseline
-  is lowered (KNOWN_ISSUES 117 items 1–2). Done for ai-practice,
-  ai-recovery-variants, question-reports and question-explanations (2026-10-09)
-  and ai-gateway (2026-10-13). The other twelve wait on the owner (ruling 5c);
-  what deploying them would change is measured in KNOWN_ISSUES 130.
+- ~~**E7. Deploy each AI function from the repo**~~ — DONE 2026-10-13: all 21
+  edge functions match the repo, each answered identically before and after,
+  and the drift baseline is down to one types-only file (KNOWN_ISSUES 130).

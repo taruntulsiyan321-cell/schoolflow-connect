@@ -5231,13 +5231,9 @@ Kept on purpose, per 110: the school rulings in `thresholds.ts` and `bands.ts`.
 
 **Open:**
 
-1. **`reasoningBudget.ts` differs from 11 deployed copies by one unreachable comparison** (`tier === "enterprise"`
-   after enterprise had become complex), deleted because the typecheck now reads the file. Behaviour-identical;
-   accepted in `edge-drift-baseline.json`. Each function takes it at its next deploy — lower the baseline then.
-2. **Stale headers in shared edge modules**, to correct at the next deploy of the functions that bundle them:
-   `failureRecovery.ts` ("edge mirror of src/academic/ai/failureRecovery.ts"), `promptLibrary.ts` ("Keep in sync
-   with src/academic/ai/novaTutoringPolicy.ts NOVA_CHAT_SYSTEM_V3"), and `questionGenerator.ts` (its "SHARED BODY
-   (parity-checked" marker — there is no pair now; the test imports the module).
+1. ~~**`reasoningBudget.ts` differs from 11 deployed copies**~~ — DEPLOYED 2026-10-13 with every function (130).
+2. ~~**Stale headers in shared edge modules**~~ — FIXED and DEPLOYED 2026-10-13, with `phone.ts`'s, which named a
+   deleted `src/lib/phone.ts` too.
 3. ~~**No gate type-checks the edge functions.**~~ FIXED 2026-10-13: `npm run typecheck` checks them; see 130.
 4. **Concept explain reads office facts for a student.** It calls `fetchEie` without `learningOnly`, so a school
    student's attendance and homework are read and `attendance_risk` enters the pack. Individual students have no
@@ -5763,15 +5759,22 @@ row, an unchecked user, an env value used as a string, an unknown builder method
 **Deployed:** `ai-gateway` only, which the owner ruled deployable (2026-09-26). Production matches the repo, and an
 unsigned request still gets 401.
 
-**What is open (the owner's call, ruling 5c — recorded in 75, "What a full deploy would change"):**
-1. **Twelve other functions carry the old `modelRouter.ts`.** The repo's version differs by a type and one deleted
-   comment. That is accepted in `edge-drift-baseline.json` (35 findings across 21 functions).
-2. **What deploying the rest would change, measured 2026-10-13 from production's own source:**
-   * `ai-battle-report` and `dpp-generate-questions` are a generation behind on six shared modules (the
-     `finish_reason`, `schemaShape` and "why it did not parse" work the other AI functions have had since 9 Oct).
-   * `dpp-generate-questions` would also take its prompt from `_shared/questionGenerator.ts`, and would start
-     rejecting malformed questions (`normalizeGeneratedQuestions`) instead of passing them through.
-   * The rest take only the `reasoningBudget.ts` and header changes of 117.
-3. **The gate cannot see misuse of the supabase-js API beyond what 2.45.0's untyped client checks.** Every row is
-   `any` there too, so a wrong column name is invisible, as it is at run time until the query fails. The functions
-   pin 2.45.0; moving them to a typed client is its own change.
+**Every function deployed from the repo, 2026-10-13** (the owner: "complete everything … production-ready now",
+which settles ruling 5c's open deploys). Eighteen functions differed; each was diffed against production's own
+source first, and in every one the repo was the newer side:
+* `ai-battle-report` and `dpp-generate-questions` were a generation behind on six shared modules.
+* `dpp-generate-questions` now takes its prompt from `_shared/questionGenerator.ts` and rejects malformed questions
+  (`normalizeGeneratedQuestions`) instead of passing them through.
+* The rest differed by removed `export`s, one unused function, `reasoningBudget.ts` and headers.
+
+Before deploying, every function's `verify_jwt` was checked against `config.toml`: all 21 match. All 21 were called
+as an anonymous client before and after, and each answered identically: each runs its own refusal (401, 403 for the
+background jobs, 400 for sign-in without a token). Measured after:
+* `check:edge-drift` reports no drift.
+* The baseline holds one finding: `custom-practice-upload/types.ts`, which is imported only as types, and the
+  bundler strips those.
+* `premium-webhook` answers 503 "webhook not configured" until the Razorpay secrets are set.
+
+**What is open:** the gate cannot see misuse of the supabase-js API beyond what 2.45.0's untyped client checks.
+Every row is `any` there too, so a wrong column name is invisible, as it is at run time until the query fails. The
+functions pin 2.45.0; moving them to a typed client is its own change.
