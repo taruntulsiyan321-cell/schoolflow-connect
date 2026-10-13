@@ -398,8 +398,7 @@ export async function completeWithQwen(input: {
  * Falls back to builtin templates when DB row is missing.
  */
 export async function completeWithPromptLibrary(input: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  admin: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }> };
+  admin: { rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }> };
   capability_id: string;
   vars: Record<string, string>;
   /** Data-URI images — forces routing to the vision-capable model regardless of primary/fallback. */

@@ -25,6 +25,9 @@ export function isAiBillingOrCreditsIssue(
   if (
     code === "openrouter_billing" ||
     code === "budget_exhausted" ||
+    // The budget could not be checked, so the gateway refused to spend
+    // (fail-closed, supabase/functions/_shared/aiRouter.ts reserveBudget).
+    code === "budget_check_unavailable" ||
     code === "openrouter_not_configured" ||
     code === "generative_disabled"
   ) {

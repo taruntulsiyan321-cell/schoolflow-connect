@@ -2129,7 +2129,7 @@ export async function routeAiRequest(
             context_provenance: pack.provenance,
             confidence: conf.confidence,
             confidence_action: "facts_only",
-            degraded_reason: "budget_exhausted",
+            degraded_reason: budget.error_code,
           };
           decision = "answered_facts_only";
           confidence_score = conf.confidence;
@@ -2144,7 +2144,7 @@ export async function routeAiRequest(
             used_model: false,
             cache_hit,
             latency_ms: Date.now() - started,
-            error_code: "budget_exhausted",
+            error_code: budget.error_code,
             confidence: confidence_score,
             budget_tier,
             estimated_cost_units: 0,
@@ -2164,7 +2164,7 @@ export async function routeAiRequest(
             },
             confidence: confidence_score,
             budget_tier,
-            error_code: "budget_exhausted",
+            error_code: budget.error_code,
           };
         }
 
@@ -2792,7 +2792,7 @@ export async function routeAiRequest(
           structured.image && typeof structured.image === "object"
             ? (structured.image as Record<string, unknown>)
             : structured;
-        const meta = {
+        const meta: Parameters<typeof runImageDoubtSubmit>[0] = {
           mime: String(imageRaw.mime ?? imageRaw.content_type ?? ""),
           bytes: Number(imageRaw.bytes ?? imageRaw.size ?? 0),
           width: imageRaw.width != null ? Number(imageRaw.width) : null,
@@ -2966,7 +2966,7 @@ export async function routeAiRequest(
           structured.audio && typeof structured.audio === "object"
             ? (structured.audio as Record<string, unknown>)
             : structured;
-        const meta = {
+        const meta: Parameters<typeof runVoiceDoubtSubmit>[0] = {
           mime: String(audioRaw.mime ?? audioRaw.content_type ?? ""),
           bytes: Number(audioRaw.bytes ?? audioRaw.size ?? 0),
           duration_ms: audioRaw.duration_ms != null ? Number(audioRaw.duration_ms) : null,
@@ -3507,7 +3507,7 @@ export async function routeAiRequest(
             concept: conceptFacts.concept,
             facts: conceptFacts,
             retrieval: retrievalEvidence,
-            degraded_reason: "budget_exhausted",
+            degraded_reason: budget.error_code,
           };
           decision = "answered_facts_only";
           await writeDecision(admin, {
@@ -3521,7 +3521,7 @@ export async function routeAiRequest(
             used_model: false,
             cache_hit,
             latency_ms: Date.now() - started,
-            error_code: "budget_exhausted",
+            error_code: budget.error_code,
             budget_tier,
             estimated_cost_units: 0,
             evidence: { student_id: studentId, budget },
@@ -3535,7 +3535,7 @@ export async function routeAiRequest(
             cache_hit,
             data,
             budget_tier,
-            error_code: "budget_exhausted",
+            error_code: budget.error_code,
           };
         }
 
@@ -4453,8 +4453,8 @@ export async function routeAiRequest(
         // Learning-only evidence: attendance_pct / average_marks_pct / homework_pending
         // stay null; allowed_pcts is mastery (+ progression ints) — never office fetches.
         const evidence = evidenceFromNovaLearningFacts({
-          eie: facts.eie,
-          progression: facts.progression,
+          eie: eieLearning,
+          progression,
         });
         const validation = validateModelResponse(modelResult.text, evidence, {
           max_chars: pack.token_budget.output * 6,

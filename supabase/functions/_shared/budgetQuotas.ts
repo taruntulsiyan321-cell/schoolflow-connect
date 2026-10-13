@@ -15,7 +15,9 @@ export type BudgetCheckResult =
       units_used: number;
       soft_limit: number;
       hard_limit: number;
-      error_code: "budget_exhausted";
+      // budget_check_unavailable: the reserve RPC failed, and the router
+      // refuses to spend (fail-closed) — not the same as a spent budget.
+      error_code: "budget_exhausted" | "budget_check_unavailable";
     };
 
 

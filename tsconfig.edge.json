@@ -1,0 +1,27 @@
+{
+  // The edge functions (supabase/functions), type-checked as Deno would —
+  // `strict`, Deno's default — by `npm run typecheck` (docs/TODO.md E6).
+  // Nothing type-checked them before: the deploy bundler does not, so code
+  // that did not compile ran anyway (KNOWN_ISSUES 117 item 3).
+  //
+  // The two remote modules are declared in scripts/edge-types: supabase-js
+  // as 2.45.0 types an untyped client (the installed 2.105 types it
+  // differently), and Deno's globals.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": [],
+    "strict": true,
+    "paths": {
+      "https://esm.sh/@supabase/supabase-js@2.45.0": ["./scripts/edge-types/supabase-js-2.45.d.ts"]
+    }
+  },
+  "include": ["supabase/functions/**/*.ts", "scripts/edge-types/*.d.ts"]
+}

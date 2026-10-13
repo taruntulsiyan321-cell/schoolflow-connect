@@ -212,6 +212,14 @@ describe("billing / credits soft degradation helpers", () => {
     ).toBe(false);
     expect(AI_BILLING_UNAVAILABLE_MSG).toMatch(/billing\/credits/i);
   });
+
+  it("reads a spent budget and an unreachable budget check alike: the model is unavailable", () => {
+    // The gateway reports the two apart since 2026-10-13 (it used to call an
+    // outage of the budget check "budget_exhausted").
+    for (const error_code of ["budget_exhausted", "budget_check_unavailable"]) {
+      expect(isAiBillingOrCreditsIssue({ error_code, message: "", data: null }), error_code).toBe(true);
+    }
+  });
 });
 
 describe("no demo / fake numbers in mapper", () => {

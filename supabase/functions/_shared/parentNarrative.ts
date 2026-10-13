@@ -5,10 +5,11 @@
 
 type ParentNarrativeInput = {
   student_label?: string;
-  attendance_pct: number;
-  homework_completion_pct: number;
-  tests_avg_pct: number;
-  exams_avg_pct: number;
+  // null: not known (fetchParentSummary's pctOrNull) — said as "not available yet".
+  attendance_pct: number | null;
+  homework_completion_pct: number | null;
+  tests_avg_pct: number | null;
+  exams_avg_pct: number | null;
   // Chunk 7B batch 2d: weak_topics and strong_topics are GONE from the parent
   // narrative, not made optional.
   //
@@ -39,9 +40,13 @@ type ParentNarrative = {
   completeness: number;
 };
 
-function pct(n: number): string {
-  if (!Number.isFinite(n) || n <= 0) return "not available yet";
-  return `${Math.round(n * 10) / 10}%`;
+/** A percentage there is something to say about: known, finite and above zero. */
+function known(n: number | null | undefined): n is number {
+  return typeof n === "number" && Number.isFinite(n) && n > 0;
+}
+
+function pct(n: number | null | undefined): string {
+  return known(n) ? `${Math.round(n * 10) / 10}%` : "not available yet";
 }
 
 /**
@@ -53,10 +58,10 @@ export function buildParentScheduledNarrative(input: ParentNarrativeInput): Pare
 
   bullets.push(`Attendance: ${pct(input.attendance_pct)}.`);
   bullets.push(`Homework completion: ${pct(input.homework_completion_pct)}.`);
-  if (input.tests_avg_pct > 0) bullets.push(`Tests average: ${pct(input.tests_avg_pct)}.`);
-  if (input.exams_avg_pct > 0) bullets.push(`Exams average: ${pct(input.exams_avg_pct)}.`);
+  if (known(input.tests_avg_pct)) bullets.push(`Tests average: ${pct(input.tests_avg_pct)}.`);
+  if (known(input.exams_avg_pct)) bullets.push(`Exams average: ${pct(input.exams_avg_pct)}.`);
 
-  if (typeof input.avg_mastery === "number" && input.avg_mastery > 0) {
+  if (known(input.avg_mastery)) {
     bullets.push(`Tracked concept mastery average: ${pct(input.avg_mastery)}.`);
   }
   if (input.revision_topics?.length) {
@@ -73,9 +78,9 @@ export function buildParentScheduledNarrative(input: ParentNarrativeInput): Pare
     asOf;
 
   let completeness = 0.2;
-  if (input.attendance_pct > 0) completeness += 0.25;
-  if (input.homework_completion_pct > 0) completeness += 0.2;
-  if (input.tests_avg_pct > 0 || input.exams_avg_pct > 0) completeness += 0.15;
+  if (known(input.attendance_pct)) completeness += 0.25;
+  if (known(input.homework_completion_pct)) completeness += 0.2;
+  if (known(input.tests_avg_pct) || known(input.exams_avg_pct)) completeness += 0.15;
   // The 0.2 that practice topics used to contribute is not redistributed: the
   // narrative genuinely carries less than it did, and completeness should say
   // so rather than round itself back up to look unchanged (G4).
