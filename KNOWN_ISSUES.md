@@ -5180,8 +5180,12 @@ with a control that fails (a floated bar must be seen). Fixed on the way, each a
    Plans feature names are `td`. A rewrite of the file is its own piece of work.
 2. ~~**Server errors under concurrent load.**~~ FIXED 2026-10-13 — found by name in the log store and fixed at
    the cause; see 129.
-3. **The Android app carries the web build it was built with.** It needs `npm run build:app` and a new APK to show
-   the new menu.
+3. ~~**The Android app carries the web build it was built with.**~~ REBUILT 2026-10-13 from main 6248fd4f
+   (`npm run build:app` with the live site's public MSG91 ids, then `gradlew assembleDebug`). The APK's entry
+   script has the same md5 as `dist-app`'s. On the `medium_phone` emulator it opens to "Sign in — Gurukul" at
+   `/auth` on that bundle, with the MSG91 widget started and Send OTP enabled; nobody signed in. It is still a
+   **debug** build at versionCode 1 / "1.0", so every build reports the same version, and it is still not
+   distributed (see 111).
 4. Labels at 10px (the uppercase eyebrows, the bottom bar's names) are a design choice, not a defect; they are
    the only text under 11px the passes found.
 

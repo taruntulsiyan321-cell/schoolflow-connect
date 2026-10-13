@@ -201,8 +201,9 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
   worklist on every read, holding locks the next load waited on
   (20261158000000; a job keeps that worklist now). Nine browsers on one
   student: 50.5 s down to 2.7 s. Open: Micro compute.
-- **E3. The Android app** needs `npm run build:app` and a new APK to carry the
-  five-head menu and everything since (KNOWN_ISSUES 116 item 3).
+- ~~**E3. The Android app**~~ — REBUILT 2026-10-13 from 6248fd4f (debug APK,
+  opens to sign-in on the emulator with the widget ready; KNOWN_ISSUES 116
+  item 3). Distribution (release signing, Play listing) is still the owner's.
 - **E4. Owner ruling:** "Fayol's Principles" (58) / "Fayol principles" (1) are
   one topic under two names; "Fayol's Principles of Management" (18) may be the
   same (KNOWN_ISSUES 115 item 1).
