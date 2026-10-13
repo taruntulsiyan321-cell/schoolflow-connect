@@ -200,10 +200,10 @@ export function useAnalysisPageData(enabled = true) {
         // page fired the same RPC twice on every load and threw one answer
         // away.
         //
-        // That is not merely wasteful: the snapshot is a WRITE. It ends with
-        // PERFORM _rebuild_revision_queue, which inserts, updates and
-        // auto-clears rows in the AI layer's weak-topic worklist. Opening
-        // Analysis ran that twice, concurrently, against the same rows.
+        // That was not merely wasteful: until 20261158000000 the snapshot was
+        // a WRITE, ending with PERFORM _rebuild_revision_queue, so opening
+        // Analysis ran that rebuild twice, concurrently, against the same
+        // rows. A scheduled job keeps that worklist now (KNOWN_ISSUES 129).
         // THE ONE POPULATION ACCURACY IS COUNTED OVER (G5).
         //
         // `question_attempts` is the durable per-attempt record, and it is what

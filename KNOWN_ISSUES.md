@@ -5178,9 +5178,8 @@ with a control that fails (a floated bar must be seen). Fixed on the way, each a
    `overflow: hidden`, every `th` at 800, every `td` coloured, the sidebar and header restyled by attribute
    selectors. Only the input rules caused a measured defect and only they were removed; the `th` rule is why the
    Plans feature names are `td`. A rewrite of the file is its own piece of work.
-2. **Server errors under concurrent load.** With three to nine browsers loading the same student at once, some
-   requests on Analysis and Recovery returned 500 and one auth-context load timed out; in every pass run one
-   browser at a time since, none did. The failing endpoint was not caught by name; the passes now record it if it recurs.
+2. ~~**Server errors under concurrent load.**~~ FIXED 2026-10-13 — found by name in the log store and fixed at
+   the cause; see 129.
 3. **The Android app carries the web build it was built with.** It needs `npm run build:app` and a new APK to show
    the new menu.
 4. Labels at 10px (the uppercase eyebrows, the bottom bar's names) are a design choice, not a defect; they are
@@ -5653,3 +5652,71 @@ weight and opacity were compared.
 2. **`text-rose-400` (11 uses) and `text-sky-300` (2) were never translated** and render raw: a pale pink-red and a
    light blue on light cards. They fall under the palette ruling's shadow palette; fix them with part 2's look at
    the screens.
+
+## 129. Server errors when several browsers load one student — FIXED and LIVE 2026-10-13 (20261157000000, 20261158000000)
+
+**What 116 item 2 saw:** 500s on Home, Analysis and Recovery with three to nine browsers on one student.
+
+**Found by name.** The Management API's log endpoint (`/analytics/endpoints/logs`; the old `logs.all` is gone,
+and a query covers 24 hours from its start) holds:
+* 77 statement timeouts on 2026-10-03, the day of that audit. Each is `57014` at `authenticated`'s 8 s.
+* 0 or 1 a day on every other day from 26 Sep to 10 Oct.
+* 44 of the 77 were cancelled inside `_recovery_session_plan_for`, under `_recovery_queue_for`. 38 of those came
+  through `rpc_student_academic_snapshot`, which builds the whole recovery queue to count startable chapters.
+
+**Not locks, at first.** `log_lock_waits` is on with a 1 s threshold, and 3 Oct logged no lock waits. A controlled
+2.2 s advisory-lock wait does appear in the same store, so that zero is real.
+
+**The cost.** Alone, the heaviest student's queue took 272 ms, and their snapshot 362 ms (75% of it the queue).
+* Each wide chapter called `_recovery_step_pool` 16 times, at about 1.2 ms a call even when it returned nothing.
+  EXPLAIN gave 3 ms of planning to under 1.5 ms of execution.
+* The three recovery helpers were `LANGUAGE sql` with `SET search_path`. The SET clause stops inlining, and
+  PostgreSQL 17 plans a non-inlined SQL function afresh on every call.
+* The database is Micro compute (2 shared cores, 1 GB).
+
+**Fix 1 — 20261157000000.** `_recovery_step_pool`, `_recovery_variant_pool` and `_recovery_chapter_is_for` are
+now PL/pgSQL around their identical queries, so each plan is kept for the connection.
+* The heaviest queue went from 272 ms to 62 ms, and the snapshot from 362 ms to 139 ms.
+* The proof compared everything on live data, before and after: every pool of every open mistake at every rung,
+  1,740 variant pools, 344 entitlements (true and false), every plan and every queue. All were identical. Seven
+  mutants were killed.
+
+**One defect the comparison found.** The queue sorted by (ready, open mistakes) only, so tied chapters came out in
+plan order, and the order differed between runs. Recovery renders it as-is. It now ends at subject, chapter and
+chapter_id. The proof requires custom and generic plans to give the same order.
+
+**Then locks, under load.** After fix 1, nine simultaneous loads of one student logged six waits in
+`_rebuild_revision_queue` line 28, up to 3.9 s and 16 s in all.
+* The snapshot ended every read with that rebuild. It UPDATEs Nova's weak-topic worklist (`revision_queue`, read
+  only by `aiRouter.ts` fetchEie/probeEie), so each load held row locks that the next load of the same student
+  waited on.
+
+**Fix 2 — 20261158000000.** The snapshot only reads now. It is the live text with that one call removed.
+* `refresh_revision_worklists(window)` rebuilds the worklist of everyone with an answer or mistake in the window.
+  It runs every 15 minutes over 20, and daily over `WEAK_WINDOW_DAYS + 1`, because the weak-topic count slides
+  with its window.
+* The proof shows each student's snapshot answers exactly as before and writes nothing. It uses
+  `pg_stat_xact_user_tables`, with the old snapshot's 5 written rows as the control.
+* The job leaves the worklist exactly as the old snapshot did.
+* Grants and both schedules are checked. Seven mutants were killed.
+
+**Measured on live, one student, N browsers each loading the snapshot and the recovery queue at once (server-side
+ms, median):**
+
+| N | snapshot before | snapshot after | queue before | queue after |
+|---|---|---|---|---|
+| 1 | 518 | 243 | 457 | 176 |
+| 3 | 1,490 | 564 | 1,295 | 483 |
+| 6 | 6,921 | 2,509 | 2,910 | 1,011 |
+| 9 | 50,525 | 2,702 | 41,902 | 1,548 |
+
+The final run logged no lock waits.
+
+**What is open:**
+1. **The instance is small.** On 2 shared cores, nine heavy loads at once still take 1.5–2.7 s, and repeated runs
+   varied widely: one N=9 run after fix 1 took 8.7 s, the next 35 s. Load from more students than that needs more
+   compute, which is the owner's call (cost).
+2. **Nova's worklist is now up to 15 minutes behind a student's last answer.** Before, it was rebuilt on every Home
+   load. Nova also reads `concept_mastery` live, so its picture of a weakness is not stale.
+3. **Nova recommends revision from this weak-topic worklist, while the Revision screen works from `chapter_state`.**
+   That is two homes for "what to revise" (G9). It predates this change and is a product decision.

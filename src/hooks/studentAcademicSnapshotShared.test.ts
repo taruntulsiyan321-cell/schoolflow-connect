@@ -2,12 +2,10 @@
  * Four screens asking for the student's snapshot ask the server once.
  *
  * `rpc_student_academic_snapshot` counts homework and tests, builds the weak
- * topic list, walks the recovery queue and the revision ladder, reads 28 days
- * of activity, computes exam readiness — and writes, through
- * `_rebuild_revision_queue`. Measured on production 2026-09-23, from
- * pg_stat_statements: 29,322 calls, 1,975 s of database time, max 7.7 s. It is
- * the call that returns 57014 on the home and analysis screens
- * (KNOWN_ISSUES 74).
+ * topic list, walks the recovery queue and the revision ladder and computes
+ * exam readiness. Measured on production 2026-09-23, from pg_stat_statements:
+ * 29,322 calls, 1,975 s of database time, max 7.7 s. It was the call that
+ * returned 57014 on the home and analysis screens (KNOWN_ISSUES 74, 129).
  *
  * It had no sharing at all: Dashboard, Analysis, the Practice hub and the
  * Battleground each called it, and the hook re-fires on live events across

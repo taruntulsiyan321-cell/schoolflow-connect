@@ -70,12 +70,15 @@ export type AcademicSnapshot = {
  *
  * `rpc_student_academic_snapshot` is not a cheap read: it counts homework and
  * tests, builds the weak-topic list, walks the recovery queue and the revision
- * ladder, reads 28 days of activity and computes exam readiness — and it
- * WRITES, through `_rebuild_revision_queue`. Measured on production
- * 2026-09-23, from pg_stat_statements: **29,322 calls, 1,975 s of database
- * time, max 7.7 s**, and it is the call that returns
+ * ladder and computes exam readiness. Measured on production 2026-09-23, from
+ * pg_stat_statements: **29,322 calls, 1,975 s of database time, max 7.7 s**,
+ * and it is the call that returned
  * `57014 canceling statement due to statement timeout` on the student's home
- * and analysis screens (KNOWN_ISSUES 74).
+ * and analysis screens (KNOWN_ISSUES 74). Since 2026-10-13 it is a pure read
+ * and 2.6x cheaper: the recovery plans inside it are planned once
+ * (20261157000000), and the worklist rebuild it used to end with — a write
+ * whose row locks made every other load of the same student wait — is a
+ * scheduled job (20261158000000, KNOWN_ISSUES 129).
  *
  * It had no sharing of any kind. Dashboard, Analysis, the Practice hub and the
  * Battleground each called it on mount, and this hook re-fires on live events

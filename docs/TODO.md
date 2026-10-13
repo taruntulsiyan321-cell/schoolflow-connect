@@ -195,9 +195,12 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
   (every `button` weight 700 and `overflow: hidden`, every `th` 800, every `td`
   coloured, sidebar and header restyled by attribute selectors). Rewrite it
   under RULE 0 (KNOWN_ISSUES 116 item 1).
-- **E2. Server errors under concurrent load** on Analysis and Recovery —
-  observed with 3–9 browsers on one student, never one at a time; the failing
-  request was not named (KNOWN_ISSUES 116 item 2).
+- ~~**E2. Server errors under concurrent load**~~ — DONE 2026-10-13
+  (KNOWN_ISSUES 129). The logs named the cause: the recovery helpers were
+  re-planned on every call (20261157000000), and the snapshot rebuilt Nova's
+  worklist on every read, holding locks the next load waited on
+  (20261158000000; a job keeps that worklist now). Nine browsers on one
+  student: 50.5 s down to 2.7 s. Open: Micro compute.
 - **E3. The Android app** needs `npm run build:app` and a new APK to carry the
   five-head menu and everything since (KNOWN_ISSUES 116 item 3).
 - **E4. Owner ruling:** "Fayol's Principles" (58) / "Fayol principles" (1) are
