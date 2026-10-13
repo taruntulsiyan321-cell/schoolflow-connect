@@ -1,19 +1,12 @@
 /**
- * Deno copy of the question generator. THE SOURCE OF TRUTH IS
- * `src/academic/ai/questionGeneration.ts` — everything below the SHARED BODY
- * marker is a verbatim copy of that file and is gated by
- * `src/academic/ai/questionGeneration.test.ts`, which compares the two with
- * comments stripped and fails on any drift.
- *
- * Edit the client copy. This one follows.
+ * The question generator — the only copy. `src/academic/ai/questionGeneration.test.ts`
+ * tests it here directly.
  *
  * Both `dpp-generate-questions` and `ai-gateway`'s
  * `teacher.question_paper.generate_questions` capability call into here, so
  * there is exactly one description of what a good question looks like and one
  * per-format token budget, rather than a copy per caller.
  */
-
-// ── SHARED BODY (parity-checked — keep identical in both copies) ──────────
 
 export type GeneratedFormat = "mcq" | "short" | "long";
 

@@ -1,5 +1,6 @@
 /**
- * Enterprise Failure Recovery — edge mirror of src/academic/ai/failureRecovery.ts
+ * Enterprise Failure Recovery — classify a provider failure and decide whether
+ * and when to retry it. There is one copy, this one.
  */
 
 type FailureClass =

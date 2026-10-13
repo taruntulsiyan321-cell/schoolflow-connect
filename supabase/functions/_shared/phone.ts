@@ -1,9 +1,8 @@
-// Canonical phone normalization — Deno edge mirror of src/lib/phone.ts.
-// Keep both in sync (and the SQL public.normalize_phone() function, upgraded
-// in 20260808100000_canonical_phone_normalization.sql) — same algorithm,
-// same India-only scope assumption. See src/lib/phone.ts for the full
-// rationale; duplicated here rather than imported since edge functions and
-// the client bundle build separately (same pattern as capabilityCatalog.ts).
+// Canonical phone normalization — the one TypeScript copy: the edge functions
+// and the app both import it (src/lib/phone.test.ts tests it here). The SQL
+// public.normalize_phone() (20260808100000_canonical_phone_normalization.sql)
+// applies the same algorithm and the same India-only assumption; change both
+// together.
 
 const DEFAULT_COUNTRY_CODE = "91";
 
