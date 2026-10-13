@@ -5238,9 +5238,7 @@ Kept on purpose, per 110: the school rulings in `thresholds.ts` and `bands.ts`.
    `failureRecovery.ts` ("edge mirror of src/academic/ai/failureRecovery.ts"), `promptLibrary.ts` ("Keep in sync
    with src/academic/ai/novaTutoringPolicy.ts NOVA_CHAT_SYSTEM_V3"), and `questionGenerator.ts` (its "SHARED BODY
    (parity-checked" marker — there is no pair now; the test imports the module).
-3. **No gate type-checks the edge functions.** Compiled with `tsc` (Deno's URL import mapped to the installed
-   package), ai-gateway's graph has 59 errors, none added here: results read as `.error` without narrowing, and
-   `process` in Deno code. They run because the bundler does not type-check.
+3. ~~**No gate type-checks the edge functions.**~~ FIXED 2026-10-13: `npm run typecheck` checks them; see 130.
 4. **Concept explain reads office facts for a student.** It calls `fetchEie` without `learningOnly`, so a school
    student's attendance and homework are read and `attendance_risk` enters the pack. Individual students have no
    such row; a school-era path.
@@ -5724,3 +5722,47 @@ The final run logged no lock waits.
    load. Nova also reads `concept_mastery` live, so its picture of a weakness is not stale.
 3. **Nova recommends revision from this weak-topic worklist, while the Revision screen works from `chapter_state`.**
    That is two homes for "what to revise" (G9). It predates this change and is a product decision.
+
+## 130. The edge functions are type-checked — DONE 2026-10-13 (b8679641, ai-gateway deployed); what is open
+
+**The gate.** `tsconfig.edge.json` is a project reference of the root `tsconfig.json`, so `npm run typecheck`
+(`tsc -b --force`) checks every file under `supabase/functions` at Deno's own strictness (`strict`).
+`scripts/edge-types` declares the two remote modules:
+* **supabase-js, as 2.45.0 types an untyped client.** Every function creates its client without a Database type,
+  and 2.45.0 is not installed. Checking against the installed 2.105 made rows `never` and reported 82 defects that
+  do not exist. The declaration models what 2.45.0 does: a select resolves to `{ data: any[] | null, error:
+  PostgrestError | null }`, `single`/`maybeSingle` to one row, `getUser`/`createUser`/`generateLink` to a user or an
+  error, and `listUsers` to `User[]`.
+* **The Deno globals:** `env`, `serve` and Deno 2's `process`, plus the `unpdf` import.
+
+Seven mutants make `npm run typecheck` fail with the planted error: an unchecked `error.message`, an unchecked
+row, an unchecked user, an env value used as a string, an unknown builder method, and each fix below reverted.
+
+**What it found (17 errors at Deno strictness, all fixed):**
+* **An outage of the AI budget check was reported as a spent budget.** `reserveBudget` returns
+  `budget_check_unavailable` when its RPC fails (fail-closed), but `BudgetCheckResult` allowed only
+  `budget_exhausted`, and both callers wrote `budget_exhausted` into the decision log and the response. The type now
+  carries both, the log and the response say which, and `gatewayClient` reads either as "AI temporarily
+  unavailable".
+* **The parent narrative is given `null` for a figure that is not known,** and was typed as if that never
+  happened. One rule (`known`) now decides "not available yet". `parentNarrative.test.ts` is new, and three
+  mutants are killed.
+* `completeWithPromptLibrary` asked for a `Promise` but was handed a builder that is only `PromiseLike`.
+* The image and voice metadata widened a checked scan status back to `string`.
+* Nova's evidence read `eie` and `progression` back out of an untyped record instead of the locals they came from.
+
+**Deployed:** `ai-gateway` only, which the owner ruled deployable (2026-09-26). Production matches the repo, and an
+unsigned request still gets 401.
+
+**What is open (the owner's call, ruling 5c — recorded in 75, "What a full deploy would change"):**
+1. **Twelve other functions carry the old `modelRouter.ts`.** The repo's version differs by a type and one deleted
+   comment. That is accepted in `edge-drift-baseline.json` (35 findings across 21 functions).
+2. **What deploying the rest would change, measured 2026-10-13 from production's own source:**
+   * `ai-battle-report` and `dpp-generate-questions` are a generation behind on six shared modules (the
+     `finish_reason`, `schemaShape` and "why it did not parse" work the other AI functions have had since 9 Oct).
+   * `dpp-generate-questions` would also take its prompt from `_shared/questionGenerator.ts`, and would start
+     rejecting malformed questions (`normalizeGeneratedQuestions`) instead of passing them through.
+   * The rest take only the `reasoningBudget.ts` and header changes of 117.
+3. **The gate cannot see misuse of the supabase-js API beyond what 2.45.0's untyped client checks.** Every row is
+   `any` there too, so a wrong column name is invisible, as it is at run time until the query fails. The functions
+   pin 2.45.0; moving them to a typed client is its own change.
