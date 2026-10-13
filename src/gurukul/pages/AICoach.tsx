@@ -224,7 +224,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
                   className={cn(
                     "w-6 h-6 rounded-lg flex items-center justify-center transition-all",
                     msg.feedback === "dislike"
-                      ? "text-rose-400 bg-rose-400/10"
+                      ? "text-destructive bg-rose-400/10"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   )}
                 >
@@ -269,7 +269,7 @@ function QuestionContextCard({ ctx }: { ctx: NovaQuestionContext }) {
             {ctx.studentAnswer && (
               <div className="text-xs">
                 <span className="text-muted-foreground">You answered: </span>
-                <span className="text-rose-400 font-semibold">{ctx.studentAnswer}</span>
+                <span className="text-destructive font-semibold">{ctx.studentAnswer}</span>
               </div>
             )}
             {correct && (
@@ -480,7 +480,7 @@ function Sidebar({
               onClick={item.action}
               className={cn(
                 "w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors",
-                item.danger ? "text-rose-400 hover:bg-rose-400/10" : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                item.danger ? "text-destructive hover:bg-rose-400/10" : "text-muted-foreground hover:text-foreground hover:bg-muted",
               )}
             >
               {item.icon} {item.label}

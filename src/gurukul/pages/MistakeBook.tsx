@@ -128,7 +128,7 @@ function MistakeCard({
               <FreqBadge freq={mistake.frequency}/>
               <LuckyGuessBadge count={mistake.luckyGuesses}/>
               {mistake.aiAnswered && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-400/10 text-sky-300">AI answered</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-info/10 text-info">AI answered</span>
               )}
               {mistake.resolved && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-400/10 text-success">Resolved</span>
@@ -174,7 +174,7 @@ function MistakeCard({
             </span>
           )}
           <button onClick={onExplain}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-sky-500/15 border border-sky-500/25 text-sky-300 text-xs font-bold hover:bg-sky-500/25 transition-all">
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-info/10 border border-info/20 text-info text-xs font-bold hover:bg-info/15 transition-all">
             <Brain className="w-3 h-3"/> Explain
           </button>
           {!mistake.resolved && (
@@ -222,7 +222,7 @@ function MistakeCard({
               </div>
               ) : (
               <div className="p-3 rounded-xl bg-rose-500/8 border border-rose-500/20">
-                <div className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                <div className="text-[10px] font-bold text-destructive uppercase tracking-wider mb-1.5 flex items-center gap-1">
                   <XCircle className="w-3 h-3"/> Your Answer
                 </div>
                 <p className="text-xs text-destructive font-semibold">
@@ -360,10 +360,10 @@ function MistakePractice({
     <div className="space-y-5">
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center">
-          <AlertCircle className="w-4 h-4 text-rose-400"/>
+          <AlertCircle className="w-4 h-4 text-destructive"/>
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-[0.15em] text-rose-400">Mistake Practice</div>
+          <div className="text-[10px] uppercase tracking-[0.15em] text-destructive">Mistake Practice</div>
           <div className="text-sm font-bold text-foreground">{pluralise(questions.length, "mistake")} to work through</div>
         </div>
       </div>
@@ -379,7 +379,7 @@ function MistakePractice({
           <SubjectBadge subject={q.subject}/>
           <div className="flex items-center gap-2">
             {q.frequency >= 2 && (
-              <span className="text-[10px] font-bold text-rose-400 bg-rose-400/10 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-destructive bg-rose-400/10 px-2 py-0.5 rounded-full">
                 You've missed this {q.frequency}× before
               </span>
             )}
@@ -835,7 +835,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   if (loadError) {
     return (
       <GlassCard className="p-8 text-center">
-        <AlertCircle className="w-8 h-8 text-rose-400 mx-auto mb-2"/>
+        <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-2"/>
         <p className="text-sm text-muted-foreground">Could not load mistakes</p>
         <p className="text-xs text-muted-foreground mt-1">{loadError}</p>
       </GlassCard>
@@ -959,7 +959,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
               <div className="flex-1">
                 <ProgressBar value={s.count} max={mistakes.length} color="hsl(var(--destructive))"/>
               </div>
-              <span className="text-xs font-bold tabular-nums text-rose-400 shrink-0 whitespace-nowrap text-right">{s.count} ({s.unresolved} open)</span>
+              <span className="text-xs font-bold tabular-nums text-destructive shrink-0 whitespace-nowrap text-right">{s.count} ({s.unresolved} open)</span>
             </div>
           ))}
         </div>

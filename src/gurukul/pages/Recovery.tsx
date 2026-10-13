@@ -404,7 +404,7 @@ export default function Recovery() {
       <div className="space-y-6">
         {header}
         <GlassCard className="p-8 text-center">
-          <AlertCircle className="w-8 h-8 text-rose-400 mx-auto mb-2" />
+          <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">Could not load recovery</p>
           {queue.message && <p className="text-xs text-muted-foreground mt-1">{queue.message}</p>}
           <button type="button" onClick={reload}
@@ -442,8 +442,8 @@ export default function Recovery() {
         action={
           readyCount > 0 ? (
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
-              <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
-              <span className="text-xs font-bold text-rose-400">
+              <AlertCircle className="w-3.5 h-3.5 text-destructive" />
+              <span className="text-xs font-bold text-destructive">
                 {readyCount} ready
               </span>
             </div>

@@ -5651,9 +5651,18 @@ weight and opacity were compared.
    Removing them changes how screens look — components get the weight and colour they ask for — so it needs the
    screens seen at each width, which this session could not do (they need a signed-in student). It is its own
    change.
-2. **`text-rose-400` (11 uses) and `text-sky-300` (2) were never translated** and render raw: a pale pink-red and a
-   light blue on light cards. They fall under the palette ruling's shadow palette; fix them with part 2's look at
-   the screens.
+2. ~~**`text-rose-400` (11 uses) and `text-sky-300` (2) were never translated**~~ — FIXED 2026-10-13, measured
+   in the same harness (scratchpad `e1p2`).
+   * The 14 class literals now use `text-destructive` and `text-info`. Mistake Book's two sky tints became `bg-info/10`
+     (and `border-info/20`, `hover:bg-info/15`), which the app already uses.
+   * Before: 28 of 42 renderings were under 4.5:1, and the worst was 1.33:1 (sky-300).
+   * After: on the real card surface, destructive text reads 5.3–5.4:1 and info text on its own tint 4.70–4.78:1. On
+     the bare page grey, which these never sit on, the info pair reads 4.42:1.
+   * `theme.test.ts` now refuses both classes; a mutant that brings one back is killed.
+3. **A token finding for part 2:** a text token on its own 10% tint, on white, reads `warning` 4.29:1, `success`
+   4.48:1, `destructive` 4.73, `info` 4.80 and `primary` 5.86. Badges written that way (`bg-warning/10 text-warning`,
+   18 tints in the app) fall short for small text. That is a palette-token decision, and changing a token restyles
+   every screen, so it belongs with part 2's look at the screens.
 
 ## 129. Server errors when several browsers load one student — FIXED and LIVE 2026-10-13 (20261157000000, 20261158000000)
 

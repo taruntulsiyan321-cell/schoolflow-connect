@@ -84,9 +84,10 @@ describe("no attribute selector collides with library class names", () => {
  * and the translations deleted — so one written now would render raw: white
  * text on a white card, pale amber on a light page.
  */
-// Exactly the families theme.css translated (text-rose-400 and text-sky-300
-// it never did; they render raw today too — KNOWN_ISSUES 128).
-const LEGACY = /(^|[\s"'`])(hover:|focus:)?(text-white|bg-white\/\d+|border-white\/\d+|text-rose-(200|300)|text-emerald-(200|300|400)|text-violet-(300|400)|text-amber-(300|400)|text-blue-(300|400))(\/\d+)?(?=[\s"'`]|$)/m;
+// The families theme.css translated, and the two pale ones it never did, which
+// rendered raw (1.3:1 for sky on the page) until they too were rewritten at
+// source on 2026-10-13 (KNOWN_ISSUES 128).
+const LEGACY = /(^|[\s"'`])(hover:|focus:)?(text-white|bg-white\/\d+|border-white\/\d+|text-rose-(200|300|400)|text-sky-300|text-emerald-(200|300|400)|text-violet-(300|400)|text-amber-(300|400)|text-blue-(300|400))(\/\d+)?(?=[\s"'`]|$)/m;
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -113,7 +114,7 @@ describe("the legacy dark colour classes are gone from the app (E1)", () => {
   });
 
   it("CONTROL: the pattern catches each family, and not the tokens", () => {
-    for (const bad of ['"text-white"', '"p-2 bg-white/10"', '"border-white/5 x"', '"text-rose-300"', '"text-emerald-400/80"', '"hover:text-white"', '"text-violet-400"']) {
+    for (const bad of ['"text-white"', '"p-2 bg-white/10"', '"border-white/5 x"', '"text-rose-300"', '"text-rose-400 x"', '"bg-sky-400/10 text-sky-300"', '"text-emerald-400/80"', '"hover:text-white"', '"text-violet-400"']) {
       expect(LEGACY.test(bad), bad).toBe(true);
     }
     for (const good of ['"text-foreground"', '"bg-muted"', '"text-destructive"', '"text-primary-foreground"', '"bg-rose-500/10"', '"text-white-space"']) {
