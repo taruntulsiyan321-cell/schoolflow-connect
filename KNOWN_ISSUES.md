@@ -5778,3 +5778,55 @@ background jobs, 400 for sign-in without a token). Measured after:
 **What is open:** the gate cannot see misuse of the supabase-js API beyond what 2.45.0's untyped client checks.
 Every row is `any` there too, so a wrong column name is invisible, as it is at run time until the query fails. The
 functions pin 2.45.0; moving them to a typed client is its own change.
+
+## 131. Production health pass: Supabase's advisors, read and acted on — 2026-10-13
+
+The owner asked for production readiness. The advisors (Management API `/advisors/security` and `/performance`)
+reported 337 security and 599 performance findings. Each class was read, and acted on or kept for a stated reason.
+
+**FIXED — students could edit and delete the question bank (20261159000000).** `question_bank_student` runs with
+its owner's rights and is automatically updatable, and `authenticated` held every privilege on it. Measured as a
+real student: UPDATE and DELETE of any question were allowed, past RLS.
+* Client roles now hold at most SELECT on every public view (48 write privileges revoked).
+* Nothing in the app or the edge functions writes through a view.
+* `probe52` asks it as the student, and fails for any view created later with Supabase's default write grants. It
+  failed on live before the fix.
+* Whether anyone used it cannot be told: writes through the view ran as the owner, and nothing logs them.
+
+**FIXED — 193 policies called `auth.uid()` once per row (20261161000000).** Each is now an initplan, evaluated once
+per statement.
+* A student reading their 3,007 attempts went from 10.17 ms to 6.19 ms (1.05 ms with no RLS).
+* Equivalence was proven read-only before the change: all 258 USING / WITH CHECK expressions, as eight people, old
+  against new admitted rows. That is 2,064 comparisons and 0 differences.
+* `verify:caller-privileges` held 516/516 afterwards.
+
+**FIXED — two duplicate indexes (20261160000000).** `app_settings_school_uidx` duplicated the primary key, and
+`notices` carried two indexes on `created_at`.
+
+**An incident, caused here and over.** The first dry run of the policy rewrite did the visibility counting inside the
+transaction that ALTERed 104 tables.
+* It ran past the API's 100 s, held those tables' locks for about two minutes, and seven cron jobs waited 12 s
+  behind it. Any app request touching those tables in that window would have waited too.
+* It rolled back and nothing changed. Since then no proof that takes minutes runs while holding schema locks, and
+  the migration sets `lock_timeout = 3s`.
+
+**Kept, with the reason:**
+* `security_definer_view` (2 ERROR): `question_bank_student` (students' only door into the bank) and
+  `attendance_day_edits` both run as owner on purpose, and both fence their rows by the caller in their own WHERE.
+  The danger was the write grants, now gone.
+* `anon_security_definer_function_executable` (27): the RLS helpers (`has_role`, `same_school`, `my_*` sets).
+  Policies call them, so anon needs EXECUTE, and they answer nothing for a caller with no identity (KNOWN_ISSUES
+  anon-surface audit).
+* `authenticated_security_definer_function_executable` (219): the app's RPC design. Each one's fence is checked by
+  `lint:tenant-scope`.
+* `function_search_path_mutable` (34): all 34 are SECURITY INVOKER, so a caller's own `search_path` can only affect
+  that caller, and API clients cannot set it. Adding `SET search_path` would stop the 19 SQL ones from being
+  inlined; several sit on hot paths, which is exactly the slowdown of 129.
+* `rls_enabled_no_policy` (52, INFO): internal tables that clients must not read.
+* `extension_in_public` (`vector`, `pg_net`): moving them re-creates every dependent column and function. Not worth
+  the risk for the warning.
+* `multiple_permissive_policies` (179) and `unindexed_foreign_keys` (161, INFO): no measured cost at this size.
+  Consolidating permissive policies changes access rules, which is not a mechanical change.
+* `no_primary_key` (3): two are backups a migration's rollback restores from (`*_pre_20260925110000`), and one is a
+  merge log.
+* `auth_leaked_password_protection`: an Auth setting on the dashboard (the owner's). Sign-in is by mobile OTP.
