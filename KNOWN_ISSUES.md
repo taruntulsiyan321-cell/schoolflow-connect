@@ -5680,10 +5680,27 @@ weight and opacity were compared.
    * After: on the real card surface, destructive text reads 5.3–5.4:1 and info text on its own tint 4.70–4.78:1. On
      the bare page grey, which these never sit on, the info pair reads 4.42:1.
    * `theme.test.ts` now refuses both classes; a mutant that brings one back is killed.
-3. **A token finding for part 2:** a text token on its own 10% tint, on white, reads `warning` 4.29:1, `success`
-   4.48:1, `destructive` 4.73, `info` 4.80 and `primary` 5.86. Badges written that way (`bg-warning/10 text-warning`,
-   18 tints in the app) fall short for small text. That is a palette-token decision, and changing a token restyles
-   every screen, so it belongs with part 2's look at the screens.
+3. ~~**A token finding for part 2:** a status colour as text on its own tint fell short of 4.5:1~~ — FIXED
+   2026-10-14. The rule now: each colour, as text on the strongest of its own tints the source uses with it,
+   reads at least 4.5:1 on the darkest card surface (a GlassCard, the card at 75% over the page). Badges are
+   written `bg-warning/10 text-warning` and the like, at `/10`, `/15`, and a `/20` hover.
+   * Lightness lowered by the least that clears it; hue and saturation unchanged. Warning went from 36% to 32.5%,
+     success from 33% to 30.5%, destructive from 48% to 44% (for its `/20` hover), and info from 34% to 33%.
+     Primary was already clear.
+   * Changed in both of the token's homes, `index.css :root` and `theme.css .gurukul-student`, which hold the
+     same values.
+   * **Measured in Chromium** on the built CSS (scratchpad `e1p3/measure.cjs`), each pairing the app uses,
+     before → after: warning `/10` 4.23 → 4.93 and `/15` 3.96 → 4.60; success `/10` 4.39 → 4.92 and `/15`
+     4.11 → 4.58; destructive `/15` 4.31 → 4.88; info `/15` 4.38 → 4.61. White on solid destructive went from
+     5.40 to 6.19.
+   * The first reading was wrong in an instructive way. `[class*="bg-card"]` is painted by a gradient with
+     `!important`, so its `background-color` is transparent, and a harness that composites over it composites
+     over black.
+   * `statusContrast.test.ts` reads both homes and the tints the source pairs with each colour's own text. It
+     fails if the homes disagree or a pairing drops below 4.5. 4/4 mutants killed: a home drifting, a token
+     reverted, and a stronger tint appearing in a component.
+   * The `text-warning-foreground`, `-success-` and `-info-foreground` pairings read low, but no screen uses them;
+     the classes are not in the build.
 
 ## 129. Server errors when several browsers load one student — FIXED and LIVE 2026-10-13 (20261157000000, 20261158000000)
 

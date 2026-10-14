@@ -197,8 +197,10 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
   the legacy colour translations rewritten at source and deleted, dead rules
   gone, 100 → 70 `!important`, measured in a browser); the two pale classes it
   never translated rewritten too (2026-10-13, 1.33:1 → ≥ 4.7:1 on the card).
-  Part 2, the element rules below and the token-on-tint contrast (KNOWN_ISSUES
-  128 item 3), still open: it needs the signed-in screens seen at each width.
+  The token-on-tint contrast (KNOWN_ISSUES 128 item 3) FIXED 2026-10-14: every
+  status badge reads ≥ 4.5:1 on the card, measured in Chromium and held by
+  `statusContrast.test.ts`. Part 2, the element rules below, still open: it
+  needs the signed-in screens seen at each width.
   It held ~100 `!important` element rules
   (every `button` weight 700 and `overflow: hidden`, every `th` 800, every `td`
   coloured, sidebar and header restyled by attribute selectors). Rewrite it

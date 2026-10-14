@@ -13,9 +13,9 @@
   --secondary-foreground: 199 38% 13%;
   --accent: 9 52% 54%;
   --accent-foreground: 0 0% 100%;
-  --warning: 35 68% 36%;
+  --warning: 35 68% 32.5%;
   --warning-foreground: 0 0% 100%;
-  --destructive: 1 37% 48%;
+  --destructive: 1 37% 44%;
   --destructive-foreground: 0 0% 100%;
   --muted: 188 21% 93%;
   --muted-foreground: 198 15% 30%;
@@ -23,8 +23,8 @@
   --input: 189 18% 86%;
   --ring: 193 68% 28%;
   --radius: 0.875rem;
-  --success: 161 46% 33%;
-  --info: 192 52% 34%;
+  --success: 161 46% 30.5%;
+  --info: 192 52% 33%;
   --sidebar-background: 0 0% 100%;
   --sidebar-foreground: 199 38% 13%;
   --sidebar-primary: 193 68% 28%;

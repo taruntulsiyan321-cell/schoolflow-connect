@@ -28,7 +28,7 @@
     --accent-foreground: 0 0% 100%;
     --accent-soft: 10 51% 90%;
 
-    --warning: 35 68% 36%;
+    --warning: 35 68% 32.5%;
     --warning-foreground: 0 0% 100%;
     --warning-soft: 43 62% 87%;
 
@@ -36,7 +36,7 @@
     --muted-foreground: 198 8% 52%;
     --surface-2: 188 21% 93%;
 
-    --destructive: 1 37% 48%;
+    --destructive: 1 37% 44%;
     --destructive-foreground: 0 0% 100%;
     --destructive-soft: 5 50% 90%;
 
@@ -45,11 +45,11 @@
     --ring: 193 68% 28%;
     --radius: 0.75rem;
 
-    --success: 161 46% 33%;
+    --success: 161 46% 30.5%;
     --success-foreground: 0 0% 100%;
     --success-soft: 152 31% 89%;
 
-    --info: 192 52% 34%;
+    --info: 192 52% 33%;
     --info-foreground: 0 0% 100%;
     --info-soft: 188 41% 89%;
 
