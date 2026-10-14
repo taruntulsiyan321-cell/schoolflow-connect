@@ -11440,6 +11440,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      _revision_sweep_students: {
+        Args: { _active_within: string }
+        Returns: {
+          student_id: string
+          user_id: string
+        }[]
+      }
       _revision_topic_priority: {
         Args: {
           _accuracy?: number

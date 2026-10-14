@@ -1158,6 +1158,32 @@ async function fetchPracticeHistory(admin: SupabaseClient, schoolId: string, stu
   };
 }
 
+/**
+ * The student's open mistakes, newest first. It is the one read behind both
+ * the summary Nova is given (fetchMistakesBook) and the probe that says when
+ * that summary changed (probeMistakesBook), so the two cannot read different
+ * rows.
+ *
+ * Open is `status = 'open'`. Until 2026-10-14 both readers asked for a
+ * `mastered` column that no longer exists. The read failed, nobody read the
+ * error, and every Nova chat was told the student had no open mistakes. A
+ * failed read is now logged and comes back as null, never as an empty list.
+ */
+async function readOpenMistakes(admin: SupabaseClient, userId: string) {
+  const { data, error } = await admin
+    .from("student_mistakes")
+    .select("subject, concept, topic, times_wrong, last_wrong_at")
+    .eq("user_id", userId)
+    .eq("status", "open")
+    .order("last_wrong_at", { ascending: false })
+    .limit(40);
+  if (error) {
+    console.error(`[aiRouter] open mistakes could not be read: ${error.message}`);
+    return null;
+  }
+  return data ?? [];
+}
+
 /** Mistake Book summary for Nova. */
 async function fetchMistakesBook(admin: SupabaseClient, schoolId: string, studentId: string, actorRole: string) {
   const { data: student } = await admin
@@ -1167,32 +1193,25 @@ async function fetchMistakesBook(admin: SupabaseClient, schoolId: string, studen
     .eq("school_id", schoolId)
     .maybeSingle();
   const userId = student?.user_id ? String(student.user_id) : null;
+  const nothing = (why: string) => ({
+    projection: "StudentMistakesBook",
+    version: 1,
+    studentId,
+    schoolId,
+    open_count: 0,
+    subjects: [] as string[],
+    recent_concepts: [] as string[],
+    source_as_of: null as string | null,
+    data_version: `mistakes:${studentId}:${why}`,
+    completeness: 0,
+  });
   // The mistake book is the single most private object in the product.
   // 10.23: a practice mistake is never school data. Service role bypasses RLS.
-  if (!userId || actorRole !== "student") {
-    return {
-      projection: "StudentMistakesBook",
-      version: 1,
-      studentId,
-      schoolId,
-      open_count: 0,
-      subjects: [] as string[],
-      recent_concepts: [] as string[],
-      source_as_of: null as string | null,
-      data_version: `mistakes:${studentId}:0`,
-      completeness: 0,
-    };
-  }
+  if (!userId || actorRole !== "student") return nothing("0");
 
-  const { data: rows } = await admin
-    .from("student_mistakes")
-    .select("subject, concept, topic, times_wrong, last_wrong_at, mastered")
-    .eq("user_id", userId)
-    .eq("mastered", false)
-    .order("last_wrong_at", { ascending: false })
-    .limit(40);
-
-  const list = rows ?? [];
+  const list = await readOpenMistakes(admin, userId);
+  // Unread is not empty: completeness 0 says Nova knows nothing here.
+  if (list === null) return nothing("unreadable");
   const subjects = dedupeSubjects(list.map((r) => r.subject));
   const recent_concepts = dedupeSubjects(
     list.map((r) => {
@@ -1529,14 +1548,8 @@ async function probeMistakesBook(admin: SupabaseClient, schoolId: string, studen
     .maybeSingle();
   const userId = student?.user_id ? String(student.user_id) : null;
   if (!userId) return "mistakes:nouser";
-  const { data } = await admin
-    .from("student_mistakes")
-    .select("subject, concept, topic, times_wrong, last_wrong_at, mastered")
-    .eq("user_id", userId)
-    .eq("mastered", false)
-    .order("last_wrong_at", { ascending: false })
-    .limit(40);
-  return `mistakes:${await hashRows(data)}`;
+  const rows = await readOpenMistakes(admin, userId);
+  return rows === null ? "mistakes:unreadable" : `mistakes:${await hashRows(rows)}`;
 }
 
 async function probeRecoveryQueue(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {

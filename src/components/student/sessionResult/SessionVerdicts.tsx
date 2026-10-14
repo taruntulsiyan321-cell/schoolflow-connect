@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 import { GlassCard } from "@/gurukul/components/shared";
 import { cn } from "@/lib/utils";
@@ -9,16 +10,39 @@ import { revisionCheckLabel, revisionSplitLine, revisionVerdictLine } from "@/li
 type Props = {
   recovery: PracticeSessionResultState["recovery"] | null;
   revision: PracticeSessionResultState["revision"] | null;
+  notCounted?: PracticeSessionResultState["notCounted"] | null;
 };
 
 /**
  * The engine's verdict on a recovery session or a revision check — quoted from
  * the session that just finished, never recomputed. A session is one or the
- * other, never both, so at most one card shows.
+ * other, never both, so at most one card shows. When the engine refused to
+ * count it, that is the card, and it says why and where to go again.
  */
-export function SessionVerdicts({ recovery, revision }: Props) {
+export function SessionVerdicts({ recovery, revision, notCounted }: Props) {
   return (
     <>
+    {notCounted && (
+      <GlassCard className="p-5 mb-6">
+        <div className="flex items-start gap-2" data-testid="verdict-not-counted">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
+          <div className="space-y-1">
+            <div className="text-sm font-bold text-foreground">
+              {notCounted.kind === "revision" ? "This revision check was not counted" : "This recovery round was not counted"}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {notCounted.reason.charAt(0).toUpperCase() + notCounted.reason.slice(1)}. Your practice is saved; the chapter stays where it was.
+            </p>
+            <Link
+              to={notCounted.kind === "revision" ? "/student/revision" : "/student/recovery"}
+              className="inline-block text-xs font-semibold text-primary hover:underline"
+            >
+              {notCounted.kind === "revision" ? "Take the check again from Revision" : "Start the round again from Recovery"}
+            </Link>
+          </div>
+        </div>
+      </GlassCard>
+    )}
     {/* §4.2b — the recovery verdict, and it is deliberately TWO figures.
         "You can do the steps but the idea isn't solid yet" is actionable;
         a single blended 74% is not, and the spec calls that out by name.

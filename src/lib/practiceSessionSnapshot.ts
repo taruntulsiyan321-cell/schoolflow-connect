@@ -103,7 +103,18 @@ export type PracticeSessionResultState = {
    * they passed, how far into the run they were, or when to come back.
    */
   revision?: import("@/academic").RevisionSessionOutcome | null;
+  /**
+   * Set when the session was a recovery round or a revision check the engine
+   * refused to count. A check ended before its new questions were answered is
+   * refused, and so is a round whose chapter moved on. Said on the result
+   * screen, where it stays. It used to be a toast, which vanished as the result
+   * screen opened, leaving the student believing the check had counted
+   * (measured 2026-10-14).
+   */
+  notCounted?: NotCounted | null;
 };
+
+export type NotCounted = { kind: "recovery" | "revision"; reason: string };
 
 /** Build the optional intelligence meta blob for rpc_record_question_attempt. */
 export function buildAttemptMeta(a: PracticeAttemptSnapshot): PracticeAttemptMeta {

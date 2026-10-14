@@ -61,7 +61,11 @@ const argv = process.argv.slice(2);
 const SELF_TEST = argv.includes("--self-test");
 const SHOW_SKIPPED = argv.includes("--show-skipped");
 
-const SRC = "src";
+// The app AND the edge functions. The functions were not read until 2026-10-14,
+// when Nova's context builder (_shared/aiRouter.ts) was found asking for
+// student_mistakes.mastered, a column that no longer exists: every Nova chat
+// read the student as having no open mistakes, and the error was ignored.
+const ROOTS = ["src", "supabase/functions"];
 
 /** Builder methods whose FIRST string argument is a column name. */
 const COLUMN_FIRST_ARG = new Set([
@@ -265,7 +269,7 @@ async function main() {
     return 2;
   }
 
-  const files = walk(SRC);
+  const files = ROOTS.flatMap((root) => walk(root));
   const findings = [];
   const skipped = [];
   const stats = { chains: 0, checked: 0 };

@@ -426,7 +426,7 @@ export default function PracticeSessionResult() {
         }`}
       />
 
-      <SessionVerdicts recovery={recovery} revision={revision} />
+      <SessionVerdicts recovery={recovery} revision={revision} notCounted={localState?.notCounted ?? null} />
 
       <div className="flex flex-wrap gap-2 mb-6">
         {/* Nothing was answered — there is no analysis to freeze. */}

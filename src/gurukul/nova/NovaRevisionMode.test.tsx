@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { CONTRACT_ERROR } from "./novaRevisionClient";
+import { UNREACHED } from "@/lib/edgeFunction";
 
 /**
  * Revision mode end to end, against the edge function's real response shapes.
@@ -10,7 +11,10 @@ import { CONTRACT_ERROR } from "./novaRevisionClient";
  */
 
 const invoke = vi.fn();
-vi.mock("@/lib/edgeFunction", () => ({ invokeEdgeFunction: (...a: unknown[]) => invoke(...a) }));
+vi.mock("@/lib/edgeFunction", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/edgeFunction")>()),
+  invokeEdgeFunction: (...a: unknown[]) => invoke(...a),
+}));
 // The plan, as rpc_my_premium answers it. null = no plan in force (a school
 // student, or plans not enforced): nothing is shown and nothing is held back.
 const premium = vi.hoisted(() => ({ status: null as unknown }));
@@ -329,9 +333,9 @@ describe("Revision mode — the Feynman test", () => {
 
   it("on a failed reply keeps the answer and retries it without repeating it", async () => {
     await startTest();
-    invoke.mockReturnValueOnce(fail("Learning service unavailable. Please retry."));
+    invoke.mockReturnValueOnce(fail(UNREACHED));
     await speak("my explanation");
-    expect(await screen.findByRole("alert")).toHaveTextContent("Learning service unavailable. Please retry.");
+    expect(await screen.findByRole("alert")).toHaveTextContent(UNREACHED);
 
     invoke.mockReturnValueOnce(turn({ next_question: "Tell me more." }));
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));

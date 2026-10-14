@@ -10,6 +10,10 @@ type EdgeInvokeResult<T> = {
   planLimit?: PlanLimit | null;
 };
 
+/** A request that got no answer at all: said as what happened, with what the student can do. */
+export const UNREACHED =
+  "Couldn't reach the learning service from this browser. Check your connection (an ad or privacy blocker can also stop it), then try again.";
+
 /** Strip vendor names from messages shown in the app UI. Keep "AI" (billing copy). */
 function sanitizeUserFacingError(message: string): string {
   return message
@@ -110,8 +114,13 @@ export async function invokeEdgeFunction<T extends Record<string, unknown>>(
     }
     if (planLimit) return { data: null, error: planLimit.message, usedFallback: false, planLimit };
 
-    if (message.includes("Failed to send") || message.includes("FunctionsFetchError")) {
-      message = "Learning service unavailable. Please retry.";
+    // The request never got an answer: the browser could not send it, or lost
+    // the connection. Measured 2026-10-14: a student's two Nova Revision requests
+    // passed their CORS preflight and never reached the server, while the same
+    // browser's other AI calls did. "Unavailable" blamed a service that was up.
+    if (fnErr.name === "FunctionsFetchError") {
+      console.warn(`[invokeEdgeFunction] ${name}: the request did not reach the server`, ctx);
+      return { data: null, error: UNREACHED, usedFallback: false };
     }
 
     return { data: null, error: sanitizeUserFacingError(message), usedFallback: false };

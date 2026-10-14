@@ -59,13 +59,16 @@ DECLARE
   a uuid; b uuid; q uuid;
   r text;
 BEGIN
-  -- Two individual exam accounts; A has a practice mistake on a bank question.
+  -- Two individual exam accounts; A has a practice mistake on a bank question
+  -- that A has not marked. One mark per question: a question A already marked
+  -- made the positive control collide with A's own mark (2026-10-14).
   SELECT m.user_id, m.question_id INTO a, q
     FROM public.student_mistakes m
     JOIN public.memberships ms ON ms.account_id = m.user_id
     JOIN public.schools s ON s.id = ms.school_id AND s.kind = 'individual'
    WHERE m.source = 'practice' AND m.question_id IS NOT NULL
      AND EXISTS (SELECT 1 FROM public.question_bank qb WHERE qb.id = m.question_id)
+     AND NOT EXISTS (SELECT 1 FROM public.question_marks qm WHERE qm.user_id = m.user_id AND qm.question_ref = m.question_id)
    ORDER BY m.last_wrong_at DESC, m.id LIMIT 1;
   SELECT ms.account_id INTO b
     FROM public.memberships ms

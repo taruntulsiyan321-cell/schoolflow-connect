@@ -271,3 +271,16 @@ describe("Guesses: the \"I'm guessing\" tap", () => {
     expect(screen.queryByTestId("summary-guesses")).toBeNull();
   });
 });
+
+describe("a check the engine did not count", () => {
+  it("is said on the result screen, where it stays", async () => {
+    show({ ...STATE, notCounted: { kind: "revision", reason: "a revision check needs 8 unseen question(s) from this chapter; that sitting answered 1" } });
+    expect(await screen.findByTestId("verdict-not-counted")).toHaveTextContent("This revision check was not counted");
+  });
+
+  it("CONTROL: a session with nothing refused says nothing of the kind", async () => {
+    show(STATE);
+    await screen.findByTestId("summary-marks");
+    expect(screen.queryByTestId("verdict-not-counted")).toBeNull();
+  });
+});

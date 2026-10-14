@@ -5895,3 +5895,82 @@ Every page test mocks `useWeakChapters`, and the hook had no test of its own. `u
 covers it: every page of a long history, attempts placed by the bank past the first batch of 200 ids, a failed
 read or refused RPC shown as failed (with an empty-but-read control), and nothing read when switched off or
 before there is an account. 7/7 mutants killed. Full suite: 209 files, 1,760 tests.
+
+## 133. Signed-in production pass as a test student — 2026-10-14: four defects fixed, one owner setting
+
+The owner approved a test account (2026-10-14). Its sessions were minted the way `scripts/mint-role-sessions.mjs`
+mints them (generate_link + verify; no password typed) for the seeded CUET Audit account (`095998bc`). Every
+student screen and feature was driven on www.gurukul.study in Chromium and in Microsoft Edge (scratchpad
+`e13/sweep.cjs`, `e13/flow.cjs`).
+
+**Driven and working, with no failed request and no console or page error.** All 15 student screens at 1280 px
+and 375 px, none scrolling sideways. Also: a practice session from start to result; a 50-question mock from its
+confirm box to its marked result; a recovery round; a revision check; Nova chat; Nova Revision's gist, for a chip
+topic and a typed one, in Chromium and Edge; AI Practice; Explain my mistake; the concept report (Get insights);
+marking a question; the Report dialog (opened, not sent, because a sent report changes a live answer key); the
+new "these questions again" drill; marking all notifications read; and Plans. The Plans counters agreed with what
+was done: only the three ordinary practice answers counted.
+
+**Fixed:**
+
+1. **Nova Revision "showing an error" (owner's report).** The owner's two attempts (03:00 UTC, Edge) passed their
+   CORS preflight and never reached the server. The same browser's `ai-practice`, `ai-concept-report` and
+   `ai-explain` calls that minute did. `ai-explain` shares `ai-nova-revision`'s CORS list exactly. No request
+   body is refused by anything in front of the function (13 probe topics, including apostrophes and SQL-like
+   words). The test account's gist works in Chromium and Edge. What stopped the request was on the student's side:
+   an ad or privacy blocker can cancel a request after its preflight, or the connection can drop. The screen then
+   said "Learning service unavailable", which blamed a service that was up. `invokeEdgeFunction` now says the
+   request did not reach the service and why that can happen (`UNREACHED`), recognising the failure by its class,
+   not its text, and logs the underlying cause to the console. `edgeFunction.test.ts` covers all four outcomes;
+   2/2 mutants are killed.
+2. **A revision check ended early was silently not counted.** `rpc_submit_revision_session` refuses a check whose
+   new questions were not answered ("needs 8 unseen question(s)…"). The client said so in a toast that the result
+   screen covered as it opened. The refusal now travels with the result (`notCounted`, for recovery rounds too)
+   and stays on the result screen, saying why and linking back to Revision or Recovery. Tested at the session, the
+   page hand-off and the result page: 4/4 mutants are killed.
+3. **Nova chat never saw the student's open mistakes.** `_shared/aiRouter.ts` (ai-gateway) read
+   `student_mistakes.mastered`, a column that no longer exists (it is `status`), in two places. Both reads failed,
+   nobody read the error, and Nova was told every student had no open mistakes. There is now one read,
+   `readOpenMistakes` (status = 'open'), shared by the summary and its change probe, and a failed read is reported
+   as unreadable (completeness 0), never as empty. ai-gateway was deployed as v44. Measured: the chat before the
+   deploy logged two `mastered` errors and the chat after logged none. `lint:client-columns` now reads
+   `supabase/functions` as well as `src`; this was its only finding there.
+4. **The nightly revision-worklist refresh failed every run (my E2 regression, 20261158000000).** The rebuild left
+   `revision_queue.school_id` to a trigger that takes the signed-in caller's school, and a cron job has no caller.
+   So the first new weak-topic row failed, and with it every student's refresh (2026-10-13 20:40). In
+   20261163000000 the rebuild names the student's own school (student row, else profile), the rule all 201 live
+   rows already followed, and the sweep rebuilds each student in a subtransaction, logging a refused one by name.
+   The proof writes new rows with no caller and checks their school; the isolation control passes; the
+   anti-control and two mutants fail; the round trip and its control pass. Applied 2026-10-14: the backlog wrote
+   200 rows (201 → 401), and the nightly command then rebuilt 47 of 47. The other functions that insert without
+   naming a school (`_upsert_concept_mastery`, `rpc_record_concept_mistake`, `_capture_battle_mistakes`,
+   `rpc_mirror_battle_answer`, and `_mock_grade` through them) are reached only from a signed-in student's own
+   request (measured).
+
+Also: `probe46`'s fixture could pick a question the student had already marked, so its positive control collided
+with the one-mark-per-question rule. It now picks an unmarked one, and `verify:caller-privileges` holds 516/516.
+
+**Security pass:**
+* Supabase's advisors are unchanged from 131's decided state. The one new `rls_enabled_no_policy` is
+  `topic_merge_20261162000000`, a rollback source no client may read.
+* `verify:caller-privileges` holds 516/516.
+* All 21 edge functions refuse an anonymous call exactly as they did after 130's deploy.
+* All 10 JS/CSS files production ships were scanned (control: a known lazy-chunk sentence found). No secret
+  pattern was found, and the only JWT is the anon key.
+* All 7 storage buckets are private. Every object policy is for signed-in users, scoped to their own folder or
+  their own one-person school.
+
+**Open — the owner's:**
+
+* **Supabase Branching deploys migrations to production on every push to `main`, and fails each time.** The
+  project's branch `main` (git `main`) has status `MIGRATIONS_FAILED`. Its ledger,
+  `supabase_migrations.schema_migrations`, stops at 20260820220000, because this repo applies migrations through
+  `scripts/apply-one-migration.mjs` and records them in `public.schema_migrations`. So on each push it starts at
+  20260820230000, which no longer fits the schema, and fails with `column "class_id" does not exist`. This was
+  measured: every failure in the log lands one or two minutes after a push to main, 11 of 11. The failure rolls
+  back, so production is unchanged. But an automatic deployer pointed at production with a ledger 380 migrations
+  behind is a risk: if that one file ever applied, the ones after it would follow. **Recommended:** in the
+  Supabase dashboard, turn off automatic migration deployment for the production branch (Branching / GitHub
+  integration). Migrations here are applied by script, with proofs and round-trip tests.
+* **Screen capture has no button on the website, by design (111).** It lives on the Android app's Profile screen;
+  a website cannot capture another app's screen.

@@ -1428,9 +1428,10 @@ function drillNarrowing(drill: SessionConfig["drill"]) {
  * for it. Used by the session itself and by "Try saving again".
  *
  * Throws only when the finish fails — that is the one failure that means the
- * session was not recorded. A recovery or revision submit that fails is
- * reported on its own: the practice is saved by then, and the chapter simply
- * stays where it was, which is the honest outcome of an unrecorded check.
+ * session was not recorded. A recovery or revision submit that fails comes back
+ * as `notCounted`, and the result screen says so: the practice is saved by
+ * then, and the chapter simply stays where it was, which is the honest outcome
+ * of an unrecorded check.
  *
  * NEITHER SUBMIT SENDS A SCORE. The server counts each recovery tier, and a
  * revision check, from the answers given to that session's own questions,
@@ -1443,7 +1444,7 @@ async function completeSession(
   sessionId: string,
   attempts: PracticeAttemptSnapshot[],
   reason: EndReason,
-): Promise<Pick<SessionResults, "serverStats" | "recovery" | "revision">> {
+): Promise<Pick<SessionResults, "serverStats" | "recovery" | "revision" | "notCounted">> {
   const fin = ((await PracticeService.finish(ctx, {
     _session_id: sessionId,
     _attempts: attemptsToFinishPayload(attempts),
@@ -1451,7 +1452,7 @@ async function completeSession(
     _ended_normally: reason !== "left",
   })) ?? {}) as Record<string, unknown>;
   const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
-  const out: Pick<SessionResults, "serverStats" | "recovery" | "revision"> = {
+  const out: Pick<SessionResults, "serverStats" | "recovery" | "revision" | "notCounted"> = {
     serverStats: {
       questionCount: num(fin.total),
       correctCount: num(fin.correct_count),
@@ -1468,14 +1469,14 @@ async function completeSession(
     try {
       out.recovery = await RecoveryEngineService.submitRecoverySession(ctx, config.recovery.sessionId, sessionId);
     } catch (e) {
-      toast.error(toErrorMessage(e, "Practice saved, but the recovery result was not recorded"));
+      out.notCounted = { kind: "recovery", reason: toErrorMessage(e, "The recovery result could not be recorded") };
     }
   }
   if (config.revision) {
     try {
       out.revision = await RecoveryEngineService.submitRevisionSession(ctx, config.revision.chapterId, sessionId);
     } catch (e) {
-      toast.error(toErrorMessage(e, "Practice saved, but the revision check was not recorded"));
+      out.notCounted = { kind: "revision", reason: toErrorMessage(e, "The revision check could not be recorded") };
     }
   }
   return out;
@@ -2388,6 +2389,8 @@ interface SessionResults {
    * solid yet" rather than a bare percentage.
    */
   recovery?: import("@/academic").RecoverySessionOutcome;
+  /** Set when the engine refused to count this recovery round or revision check, and why. */
+  notCounted?: import("@/lib/practiceSessionSnapshot").NotCounted;
   serverStats?: {
     questionCount?: number;
     correctCount?: number;
@@ -2900,6 +2903,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       serverStats: res.serverStats ?? null,
       recovery: res.recovery ?? null,
       revision: res.revision ?? null,
+      notCounted: res.notCounted ?? null,
     });
   }
 
