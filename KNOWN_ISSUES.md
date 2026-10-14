@@ -5107,11 +5107,17 @@ as the database reads it — one per chapter whatever its case — so 106's olde
 
 **Open:**
 
-1. **"Fayol's Principles" (58 questions) and "Fayol principles" (1) are one topic under two names**, in
-   Principles of Management — the only pair left when case, punctuation, articles and a plural s are set aside
-   (measured 2026-10-03 across every chapter). The same chapter also holds "Fayol's Principles of Management"
-   (18), a looser look-alike. As in 107, which name survives is a naming choice and the third is a content
-   judgement: a ruling, then 20261126000000's machinery. Until then a session that met both shows two rows.
+1. ~~**"Fayol's Principles" (58 questions) and "Fayol principles" (1) are one topic under two names**~~ — MERGED
+   in 20261162000000, APPLIED 2026-10-14. Under the owner's 107 ruling (every such pair is one topic; the keeper
+   has more questions), "Fayol's Principles" now holds 59. The third name was misplaced here: "Fayol's Principles
+   of Management" (18) is in **CBSE Class 12's** "Principles of Management", not CUET's. Two chapters share that
+   name, and topics are one set per chapter, so it is not a twin and stays.
+   The migration is 20261128000000's with this pair. It also covers three references to a topic added since:
+   `ai_practice_requests` and `question_gate_outcomes`, whose `ON DELETE SET NULL` would have silently emptied a
+   copied merge, and `question_paper_sections.topic_ids`. Its proof now also checks the mistake, revision and
+   mastery copies, which 128's never did. Changed live: 1 question, 1 captured question, 2 attempts respelled,
+   1 mastery row folded. Proven: 9/9 mutants killed (four of them on seeded rows) plus two controls, and
+   migrate, roll back, byte-identical, migrate again.
 2. **The first half against the second needs five answers in each half**, so a session under ten answers shows
    no halves card. That is `MIN_OBSERVATIONS_FOR_VERDICT`, not a fault.
 3. **A session with no single chapter is compared with nothing** — the targeted modes (wrong answers, a whole

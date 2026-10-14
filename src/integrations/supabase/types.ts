@@ -10434,6 +10434,33 @@ export type Database = {
         }
         Relationships: []
       }
+      topic_merge_20261162000000: {
+        Row: {
+          kind: string
+          note: string | null
+          row_before: Json | null
+          row_id: string
+          seq: number
+          table_name: string
+        }
+        Insert: {
+          kind: string
+          note?: string | null
+          row_before?: Json | null
+          row_id: string
+          seq?: number
+          table_name: string
+        }
+        Update: {
+          kind?: string
+          note?: string | null
+          row_before?: Json | null
+          row_id?: string
+          seq?: number
+          table_name?: string
+        }
+        Relationships: []
+      }
       topics: {
         Row: {
           chapter_id: string

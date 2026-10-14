@@ -207,9 +207,10 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
 - ~~**E3. The Android app**~~ — REBUILT 2026-10-13 from 6248fd4f (debug APK,
   opens to sign-in on the emulator with the widget ready; KNOWN_ISSUES 116
   item 3). Distribution (release signing, Play listing) is still the owner's.
-- **E4. Owner ruling:** "Fayol's Principles" (58) / "Fayol principles" (1) are
-  one topic under two names; "Fayol's Principles of Management" (18) may be the
-  same (KNOWN_ISSUES 115 item 1).
+- ~~**E4. Fayol's Principles under two names**~~ — MERGED 2026-10-14
+  (20261162000000, applied; KNOWN_ISSUES 115 item 1) under the owner's 107
+  ruling. "Fayol's Principles of Management" is CBSE Class 12's chapter, not
+  a twin, and stays.
 - **E5. Question reports:** the disputed list has no owner screen, and
   reversing a wrong automatic key change is manual (KNOWN_ISSUES 113).
 - ~~**E6. Type-check the edge functions.**~~ — DONE 2026-10-13 (KNOWN_ISSUES
