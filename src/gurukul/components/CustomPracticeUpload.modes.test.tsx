@@ -22,6 +22,11 @@ vi.mock("@/academic/services/studentUploadService", async (importOriginal) => {
   };
 });
 vi.mock("sonner", () => ({ toast: { message: vi.fn(), error: vi.fn() } }));
+// No plan in force: nothing is held back, so every mode the file holds is drawn.
+vi.mock("@/lib/premium", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/premium")>()),
+  fetchPremiumStatus: async () => null,
+}));
 
 import { CustomPracticeUpload } from "./CustomPracticeUpload";
 

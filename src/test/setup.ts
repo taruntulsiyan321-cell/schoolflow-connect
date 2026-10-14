@@ -1,5 +1,7 @@
 import "@testing-library/jest-dom";
-import { configure } from "@testing-library/react";
+import { afterAll, afterEach } from "vitest";
+import { cleanup, configure } from "@testing-library/react";
+import { installNetworkGuard } from "./networkGuard";
 
 // findBy* and waitFor give up after 1 s by default. Under the full suite's
 // load a screen can take longer than that to draw what a test waits for, and
@@ -8,19 +10,25 @@ import { configure } from "@testing-library/react";
 // comes still fails. The test's own budget is in vitest.config.ts.
 configure({ asyncUtilTimeout: 5_000 });
 
-// TESTS DO NOT REACH THE NETWORK. Until 2026-10-13 any call a test left
-// unmocked went to PRODUCTION Supabase: every full run sent a few hundred
-// anonymous requests with fixture ids ("u", "u1"), which filled the live error
-// log (KNOWN_ISSUES 132). 71 tests in 10 files did; all pass with this guard,
-// which answers every absolute http(s) request with a network failure.
-const realFetch = globalThis.fetch;
-globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-  if (/^https?:\/\//.test(url)) {
-    return Promise.reject(new TypeError(`Tests do not reach the network: ${url}`));
+// TESTS DO NOT REACH THE NETWORK (src/test/networkGuard.ts). A test that asks
+// for an address fails, and the message names what to mock.
+//
+// Unmount first: a screen that sends something as it goes, such as a practice
+// session's finish, sends it during cleanup, and that request belongs to this
+// test. Then one real macrotask lets an async send reach fetch. The timer is
+// captured here because a test may have left fake timers on.
+const network = installNetworkGuard(globalThis);
+const realSetTimeout = globalThis.setTimeout;
+async function failOnReach(when: string) {
+  cleanup();
+  await new Promise((settle) => realSetTimeout(settle, 0));
+  const urls = network.takeReached();
+  if (urls.length) {
+    throw new Error(`Tests do not reach the network; mock what ${when} called:\n  ${urls.join("\n  ")}`);
   }
-  return realFetch(input, init);
-}) as typeof fetch;
+}
+afterEach(() => failOnReach("this test"));
+afterAll(() => failOnReach("this file's last test"));
 
 Object.defineProperty(window, "matchMedia", {
   writable: true,

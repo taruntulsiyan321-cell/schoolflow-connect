@@ -87,6 +87,15 @@ vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
   }, loading: false, error: null, reload: () => {} }),
 }));
 
+// The §6.3 chapter list (useWeakChapters) reads five of the student's sources;
+// WeakChapterList.test.tsx and weakChapters.test.ts cover it. Here: read, empty.
+vi.mock("@/hooks/useWeakChapters", async () => {
+  const { EMPTY_LIST } = await import("@/lib/listState");
+  return { useWeakChapters: () => ({ list: EMPTY_LIST, reload: () => {} }) };
+});
+// No paper shape and no syllabus map: the cards read against them are not drawn.
+vi.mock("@/hooks/useExamPaper", () => ({ useExamPaper: () => ({ data: null, error: null }) }));
+vi.mock("@/hooks/useSyllabusMap", () => ({ useSyllabusMap: () => ({ data: null, error: null }) }));
 import Analysis from "./Analysis";
 
 const openTab = (label: string) => fireEvent.click(screen.getByRole("tab", { name: label }));

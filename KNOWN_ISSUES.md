@@ -5831,14 +5831,25 @@ transaction that ALTERed 104 tables.
   merge log.
 * `auth_leaked_password_protection`: an Auth setting on the dashboard (the owner's). Sign-in is by mobile OTP.
 
-## 132. The test suite was calling production — STOPPED 2026-10-13; what is open
+## 132. The test suite was calling production — FIXED 2026-10-14
 
 Every full `vitest` run sent a few hundred anonymous requests to live Supabase: 71 tests in 10 files (six
 `Analysis.*`, three `Practice*`, `CustomPracticeUpload.modes`) left `useWeakChapters`, `useSyllabusMap`,
 `PracticeService.formMix` or `usePremiumStatus` unmocked. The live error log's bursts of "permission denied for
 function rpc_*" and "invalid input syntax for type uuid: \"u\"" matched the suite's run times minute for minute.
-`src/test/setup.ts` now answers every absolute http(s) request in a test with a network failure; the whole suite
-passed with it (1,750/1,750) before it was made permanent.
 
-**Open:** those 71 tests now run through their pages' failure paths for the unmocked loaders. Mock the four hooks
-in the 10 files, then make the guard FAIL a test that reaches the network, so a new leak cannot pass silently.
+Measured on 14 Oct with a logging twin of the guard: 502 requests from those 10 files went to 10 endpoints, and no
+WebSockets. The sources were the three Analysis loaders (`useWeakChapters` alone made five reads), `formMix`,
+the practice finish that a session sends **as the test unmounts it**, and `rpc_my_premium`. Each file now mocks
+what it renders.
+
+`src/test/networkGuard.ts` refuses every absolute http(s) or ws(s) address and records it. `src/test/setup.ts`
+**fails the test** that made one, naming the addresses. It unmounts first, so a request sent during cleanup belongs
+to the test that sent it. `networkGuard.test.ts` covers the guard itself. Positive controls: removing any one of
+five mocks (weak chapters, exam paper, finish-on-unmount, form mix, premium) fails that file with the guard's
+message and the right address.
+
+Every page test mocks `useWeakChapters`, and the hook had no test of its own. `useWeakChapters.test.ts` now
+covers it: every page of a long history, attempts placed by the bank past the first batch of 200 ids, a failed
+read or refused RPC shown as failed (with an empty-but-read control), and nothing read when switched off or
+before there is an account. 7/7 mutants killed. Full suite: 209 files, 1,760 tests.

@@ -28,6 +28,10 @@ vi.mock("@/academic", async (importOriginal) => {
       ],
       start: (...a: unknown[]) => start(...a),
       recordAttempt: (...a: unknown[]) => recordAttempt(...a),
+      // The paper's mix of forms (C7) and the finish a test's unmount sends
+      // are the server's; neither is what this file is about.
+      formMix: async () => null,
+      finish: async () => null,
     },
   };
 });

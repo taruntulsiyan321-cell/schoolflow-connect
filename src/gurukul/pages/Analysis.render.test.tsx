@@ -195,6 +195,12 @@ vi.mock("@/hooks/useStudentPracticeAnalytics", () => ({
   }),
 }));
 
+// The §6.3 chapter list (useWeakChapters) reads five of the student's sources;
+// WeakChapterList.test.tsx and weakChapters.test.ts cover it. Here: read, empty.
+vi.mock("@/hooks/useWeakChapters", async () => {
+  const { EMPTY_LIST } = await import("@/lib/listState");
+  return { useWeakChapters: () => ({ list: EMPTY_LIST, reload: () => {} }) };
+});
 import Analysis from "./Analysis";
 
 const openTab = (label: string) => fireEvent.click(screen.getByRole("tab", { name: label }));
