@@ -74,24 +74,59 @@ export const NO_TAG = "__no_tag__";
 export type MarkBucket = { key: string; label: string; marks: QuestionMark[] };
 
 /**
- * A mistake type that a kind of question drills (docs/TODO.md C5). A
- * calculation error drills questions worked out to a figure
- * (question_bank_student.answers_are_numbers, 20261154000000); a misread
- * question drills statement-based and assertion–reason questions, where
- * reading is the whole question. The one home for which type drives which
- * practice: Mistake Types offers it, Practice runs it from ?drill=<type>.
+ * What each mistake type drills (docs/TODO.md C5). The one home for which type
+ * drives which practice: Mistake Types offers it, Practice runs it. Every type
+ * in the catalogue is decided here, as a drill or as NO_DRILL with its reason.
+ *
+ *   kind     a kind of question, in the subject most of the marks are in. A
+ *            calculation or formula error drills questions worked out to a
+ *            figure (question_bank_student.answers_are_numbers,
+ *            20261154000000). A misread question drills statement-based and
+ *            assertion–reason questions, where reading is the whole question.
+ *            Time pressure drills the paper's own mix at the paper's own pace.
+ *            Sent as ?subject=&drill=<type>.
+ *   chapter  fresh questions from the chapter most of the marks are in. A gap
+ *            in understanding, or a wrong approach, is closed by more of the
+ *            same chapter, not by the same question again. Sent as
+ *            ?subject=&chapter=&drill=<type>.
+ *   again    the marked questions themselves. What was forgotten, or only
+ *            guessed, is learnt by answering it. Handed over in router state,
+ *            like a revision check, because a link cannot carry the questions.
+ *            It runs as a Mistake Book reattempt, which the owner ruled is
+ *            never counted against a plan (2026-09-27).
  */
-export type MistakeDrill = {
-  tag: string;
-  /** What the session asks — said on the button and as the session's name. */
-  label: string;
-  forms: QuestionForm[] | null;
-  numberAnswers: boolean;
-};
+export type MistakeDrill =
+  | {
+      tag: string;
+      draws: "kind";
+      /** What the session asks: said on the button and as the session's name. */
+      label: string;
+      forms: QuestionForm[] | null;
+      numberAnswers: boolean;
+      /** Timed at the real paper's pace (rpc_exam_paper, secondsPerQuestion). */
+      paced: boolean;
+    }
+  | { tag: string; draws: "chapter"; label: string }
+  | { tag: string; draws: "again"; label: string };
+
+const FIGURES = { draws: "kind", label: "Questions worked out to a figure", forms: null, numberAnswers: true, paced: false } as const;
+const FRESH = { draws: "chapter", label: "Fresh questions from one chapter" } as const;
+const AGAIN = { draws: "again", label: "These questions again" } as const;
 
 export const MISTAKE_DRILLS: Readonly<Record<string, MistakeDrill>> = {
-  calculation_error: { tag: "calculation_error", label: "Questions worked out to a figure", forms: null, numberAnswers: true },
-  misread_question: { tag: "misread_question", label: "Statement and assertion–reason questions", forms: ["statements", "assertion_reason"], numberAnswers: false },
+  conceptual_gap: { tag: "conceptual_gap", ...FRESH },
+  wrong_approach: { tag: "wrong_approach", ...FRESH },
+  recall: { tag: "recall", ...AGAIN },
+  formula_error: { tag: "formula_error", ...FIGURES },
+  calculation_error: { tag: "calculation_error", ...FIGURES },
+  misread_question: { tag: "misread_question", draws: "kind", label: "Statement and assertion–reason questions", forms: ["statements", "assertion_reason"], numberAnswers: false, paced: false },
+  time_pressure: { tag: "time_pressure", draws: "kind", label: "Questions at the paper's pace", forms: null, numberAnswers: false, paced: true },
+  guessed: { tag: "guessed", ...AGAIN },
+};
+
+/** The types that drive no drill, and why: said where a drill would be offered. */
+export const NO_DRILL: Readonly<Record<string, string>> = {
+  silly_mistake: "No drill for this one: these questions were understood, and no kind of question trains care.",
 };
 
 /** The drill a mistake type drives, or null when it drives none. */
@@ -99,13 +134,47 @@ export function drillFor(tag: string | null | undefined): MistakeDrill | null {
   return tag && Object.prototype.hasOwnProperty.call(MISTAKE_DRILLS, tag) ? MISTAKE_DRILLS[tag] : null;
 }
 
+/** Why a mistake type drives no drill, or null when it drives one or is unknown. */
+export function noDrillReason(tag: string | null | undefined): string | null {
+  return tag && Object.prototype.hasOwnProperty.call(NO_DRILL, tag) ? NO_DRILL[tag] : null;
+}
+
+/** The value met most often (the first met, on a tie); null when there is none. */
+function mostCommon<T>(values: ReadonlyArray<T | null>, key: (v: T) => string): T | null {
+  const counts = new Map<string, { value: T; n: number }>();
+  for (const v of values) {
+    if (v == null) continue;
+    const entry = counts.get(key(v));
+    if (entry) entry.n += 1;
+    else counts.set(key(v), { value: v, n: 1 });
+  }
+  let best: { value: T; n: number } | null = null;
+  for (const entry of counts.values()) if (best === null || entry.n > best.n) best = entry;
+  return best?.value ?? null;
+}
+
 /** Where a drill for these marks runs: the subject most of them are in (the first met, on a tie). */
 export function drillSubject(marks: ReadonlyArray<Pick<QuestionMark, "subject">>): string | null {
-  const counts = new Map<string, number>();
-  for (const m of marks) if (m.subject) counts.set(m.subject, (counts.get(m.subject) ?? 0) + 1);
-  let best: string | null = null;
-  for (const [subject, n] of counts) if (best === null || n > (counts.get(best) ?? 0)) best = subject;
-  return best;
+  return mostCommon(marks.map((m) => m.subject || null), (s) => s);
+}
+
+/** The chapter most of these marks are in, with its subject; a mark naming either alone does not count. */
+export function drillChapter(marks: ReadonlyArray<Pick<QuestionMark, "subject" | "chapter">>): { subject: string; chapter: string } | null {
+  return mostCommon(
+    marks.map((m) => (m.subject && m.chapter ? { subject: m.subject, chapter: m.chapter } : null)),
+    (c) => `${c.subject}\u0000${c.chapter}`,
+  );
+}
+
+/** At most a session's worth: an "again" drill asks this many of the marked questions. */
+export const AGAIN_LIMIT = 20;
+
+/** The questions an "again" drill asks: up to AGAIN_LIMIT of these marks', the most recently marked first. */
+export function drillQuestionIds(marks: ReadonlyArray<Pick<QuestionMark, "ref" | "updatedAt">>): string[] {
+  return [...marks]
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .slice(0, AGAIN_LIMIT)
+    .map((m) => m.ref.id);
 }
 
 /**

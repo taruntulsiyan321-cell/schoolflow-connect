@@ -5443,11 +5443,12 @@ in one tap; Practice starts a session from `?subject&chapter`.
 **Measured:** 4 mutants are killed (next is the last chapter, next is any chapter, Start never shown, next line
 hidden).
 
-**Open:**
-1. **The "starter session" is the ordinary chapter session**: 20 questions, mixed difficulty. A gentler first
-   session (fewer questions, easiest first) was not built. The bank's difficulty filter is strict, so an easy-only
-   session on a thin chapter could hold a few questions or none. That shape is the owner's to rule on before it is
-   built.
+**Decided:**
+1. **The "starter session" is the ordinary chapter session**: 20 questions, mixed difficulty, in the paper's mix
+   (C7). DECIDED 2026-10-14 (the owner left these calls to the build: "complete everything"), by measurement.
+   Of CUET's 63 chapters, 1 holds 20 easy questions, 14 hold 10, and 27 hold none. An easy-only first session
+   would be empty in 27 chapters and short in most of the rest, because the bank's difficulty filter is strict.
+   Revisit when the bank is filled (question-bank work, paused).
 
 ## 124. A mistake type drives practice — BUILT and LIVE 2026-10-09 (20261154000000); what is open
 
@@ -5492,8 +5493,25 @@ afterwards (checked). Computed in the view instead, it cannot drift from the opt
 1. **Thin supply outside Accountancy**, as the table shows. Filling it is question-bank work, paused by the owner.
 2. **A figure inside words is read as words** ("Profit ₹ 40,000"), so some calculation questions are left out of
    the drill. This keeps the reading conservative; widen it only with a measured sample.
-3. **Only the two types the to-do names drive a drill.** The other seven types (conceptual gap, recall, formula
-   error and the rest) drive none until the owner says what each should drill.
+3. ~~**Only the two types the to-do names drive a drill.**~~ BUILT 2026-10-14. Every type in the catalogue is
+   now decided in `MISTAKE_DRILLS` or `NO_DRILL`, and a test reads the catalogue's seed and fails on a type
+   decided twice or not at all. Three kinds of drill:
+   * **A kind of question**, in the subject most of the marks are in: calculation and **formula** errors get
+     questions worked out to a figure; a misread question gets statement and assertion–reason questions;
+     **time pressure** gets the paper's own mix, timed at the paper's own pace (20 × `secondsPerQuestion`, 24
+     minutes for CUET). With no paper on the account it says so rather than running untimed.
+   * **Fresh questions from the chapter** most of the marks are in: **conceptual gap** and **wrong approach**.
+     A gap in understanding is closed by more of the chapter, not by the same question again.
+   * **These questions again**: **recall** and **guessed**. Up to 20 of the marked questions, the most recently
+     marked first, are handed to Practice in router state, as a revision check is, because a link cannot carry
+     them. A link naming such a drill carries none. The session runs as a Mistake Book reattempt (mode
+     `incorrect`), which the owner ruled is never counted against a plan (2026-09-27). The server already
+     exempts that mode (`rpc_record_question_attempt`), so no plan rule was added.
+   * **Silly mistake** drives none, and the group says why: those questions were understood, and no kind of
+     question trains care.
+   A chapter drill and a paced drill narrow nothing, so they are drawn in the paper's mix (C7). Only a drill that
+   chose its forms skips the mix. `PracticeDrillArrival.test.tsx` drives the Practice page itself for the paced
+   link and the hand-off.
 
 ## 125. A revision calendar for the next two weeks — BUILT 2026-10-10; and the test suite's timing budgets
 
@@ -5566,8 +5584,9 @@ approved blueprint's mix of forms.
    statements 8. A student meets them all in their first sessions, and practice is then direct questions until the
    bank grows. That is question-bank work, paused by the owner.
 2. **Assertion–reason is not in the approved CUET blueprint** (A1), so the draw treats it as "other forms" and
-   serves it only once direct questions run out. The to-do line, written before A1, named it; the blueprint is
-   what the paper sets.
+   serves it only once direct questions run out. DECIDED 2026-10-14: the blueprint stands. The owner approved
+   A1, and it is what the paper sets; the to-do line naming assertion–reason was written before it. A student
+   who misreads gets assertion–reason questions on purpose, through the "Misread the question" drill (124).
 
 ## 127. A profile photo — BUILT and LIVE 2026-10-10 (20261156000000); what is open
 

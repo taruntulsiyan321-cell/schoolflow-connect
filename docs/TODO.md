@@ -167,13 +167,18 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
   one right in six. The guess tap (step 3b) gives each student their own rate;
   Analysis says "your guesses pay" or "leave them".
 - **~~C4. Start a chapter never practised~~ — DONE 2026-10-09 (KNOWN_ISSUES 123)** — one tap from the syllabus map
-  (Subjects & Chapters → Your whole syllabus) to a starter session.
+  (Subjects & Chapters → Your whole syllabus) to a starter session. Decided 2026-10-14: the starter session is
+  the ordinary chapter session, because 27 of 63 CUET chapters hold no easy question.
 - **~~C5. Mistake types drive practice~~ — DONE 2026-10-09 (20261154000000, KNOWN_ISSUES 124)** — "Calculation error" → numerical
-  drills; "Misread the question" → statement and assertion–reason questions.
+  drills; "Misread the question" → statement and assertion–reason questions. All nine types decided 2026-10-14:
+  formula error → numerical; time pressure → timed at the paper's pace; conceptual gap and wrong approach →
+  fresh questions from the chapter; recall and guessed → the marked questions again (a Mistake Book
+  reattempt); silly mistake → none, with the reason shown.
 - **~~C6. A revision calendar~~ — DONE 2026-10-10 (KNOWN_ISSUES 125)** — what is due over the next two weeks, not only
   today.
 - **~~C7. Practice in the real exam mix by default~~ — DONE 2026-10-10 (20261155000000, KNOWN_ISSUES 126)** — sets follow A1's blueprint
-  so students meet assertion–reason and match regularly, not 5% of the time.
+  so students meet assertion–reason and match regularly, not 5% of the time. Decided 2026-10-14: the approved
+  blueprint stands, so assertion–reason is an "other form" in the draw; the misread drill serves it on purpose.
 
 ## D. Profile and Nova
 

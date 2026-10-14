@@ -21,13 +21,25 @@ describe("what a practice link starts", () => {
     expect(link("subject=General&chapter=Mixed")).toEqual({ kind: "placeholder" });
   });
 
-  it("carries a mistake type's drill, and no drill for an unknown type (C5)", () => {
+  it("carries a mistake type's drill of a kind of question, and no drill for an unknown type (C5)", () => {
     const drilled = link("subject=Accountancy&drill=calculation_error");
     expect(drilled).toMatchObject({ kind: "session", mode: "subject", drill: MISTAKE_DRILLS.calculation_error });
     expect(link("subject=Accountancy&drill=misread_question")).toMatchObject({ drill: MISTAKE_DRILLS.misread_question });
+    expect(link("subject=Accountancy&drill=time_pressure")).toMatchObject({ drill: MISTAKE_DRILLS.time_pressure });
     // CONTROL: a type that drives no drill, and a made-up one, carry none.
-    expect(link("subject=Accountancy&drill=recall")).toMatchObject({ kind: "session", drill: null });
+    expect(link("subject=Accountancy&drill=silly_mistake")).toMatchObject({ kind: "session", drill: null });
     expect(link("subject=Accountancy&drill=__proto__")).toMatchObject({ kind: "session", drill: null });
     expect(link("subject=Accountancy")).toMatchObject({ drill: null });
+  });
+
+  it("carries a chapter drill only with the chapter it names", () => {
+    expect(link("subject=Accountancy&chapter=Ratio+Analysis&drill=conceptual_gap"))
+      .toMatchObject({ kind: "session", mode: "chapter", chapter: "Ratio Analysis", drill: MISTAKE_DRILLS.conceptual_gap });
+    expect(link("subject=Accountancy&drill=wrong_approach")).toMatchObject({ kind: "session", mode: "subject", drill: null });
+  });
+
+  it("never carries an \"again\" drill: its questions come in router state, not a link", () => {
+    expect(link("subject=Accountancy&drill=recall")).toMatchObject({ kind: "session", drill: null });
+    expect(link("subject=Accountancy&chapter=Ratio+Analysis&drill=guessed")).toMatchObject({ kind: "session", drill: null });
   });
 });

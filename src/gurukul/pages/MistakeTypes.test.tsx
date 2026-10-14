@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import type { MarkTag, QuestionMark } from "@/lib/questionMarks";
 
 /**
@@ -174,12 +174,87 @@ describe("a mistake type drives practice (C5)", () => {
       .toHaveAttribute("href", "/student/practice?subject=economics&drill=calculation_error");
   });
 
-  it("CONTROL: a type that drives no drill offers none", () => {
+  it("CONTROL: a type that drives no drill offers none, and says why", () => {
+    state.value = {
+      ...state.value,
+      tags: [...DRILL_TAGS, { key: "silly_mistake", label: "Silly mistake", group: "Working it out", position: 7, active: true }],
+      marks: new Map([...drillMarks, mark("s1", ["silly_mistake"], "accountancy")].map((m) => [m.ref.id, m])),
+    };
     render(<MemoryRouter><MistakeTypes /></MemoryRouter>);
     expect(screen.getByTestId("mistake-drill")).toBeInTheDocument();
-    // One group is open at a time: opening Recall closes Calculation error.
-    openGroup("Recall");
-    expect(screen.getByRole("button", { expanded: true })).toHaveTextContent(/^Recall/);
+    expect(screen.queryByTestId("mistake-no-drill")).toBeNull();
+    // One group is open at a time: opening Silly mistake closes Calculation error.
+    openGroup("Silly mistake");
+    expect(screen.getByRole("button", { expanded: true })).toHaveTextContent(/^Silly mistake/);
     expect(screen.queryByTestId("mistake-drill")).toBeNull();
+    expect(screen.getByTestId("mistake-no-drill")).toHaveTextContent("No drill for this one:");
+  });
+
+  it("drills a gap in understanding with fresh questions from the chapter most of them are in", () => {
+    state.value = {
+      ...state.value,
+      marks: new Map([
+        mark("g1", ["conceptual_gap"], "accountancy", { chapter: "Ratio Analysis" }),
+        mark("g2", ["conceptual_gap"], "accountancy", { chapter: "Ratio Analysis" }),
+        mark("g3", ["conceptual_gap"], "economics", { chapter: "Money" }),
+      ].map((m) => [m.ref.id, m])),
+    };
+    render(<MemoryRouter><MistakeTypes /></MemoryRouter>);
+    const drill = screen.getByTestId("mistake-drill");
+    expect(drill).toHaveTextContent("Drill it: fresh questions from Ratio Analysis.");
+    expect(within(drill).getByRole("link", { name: "Start a drill" }))
+      .toHaveAttribute("href", "/student/practice?subject=accountancy&chapter=Ratio+Analysis&drill=conceptual_gap");
+  });
+
+  describe("these questions again", () => {
+    function Arrived() {
+      return <pre data-testid="arrived">{JSON.stringify(useLocation().state)}</pre>;
+    }
+    const showRouted = () => render(
+      <MemoryRouter initialEntries={["/student/mistake-types"]}>
+        <Routes>
+          <Route path="/student/mistake-types" element={<MistakeTypes />} />
+          <Route path="/student/practice" element={<Arrived />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    const day = (d: number) => `2026-10-${String(d).padStart(2, "0")}T10:00:00Z`;
+
+    it("hands Practice the questions marked with the type, the most recently marked first", () => {
+      state.value = {
+        ...state.value,
+        marks: new Map([
+          mark("r-old", ["recall"], "accountancy", { updatedAt: day(1) }),
+          mark("r-new", ["recall"], "economics", { updatedAt: day(9) }),
+          mark("other", ["formula_error"], "accountancy", { updatedAt: day(5) }),
+        ].map((m) => [m.ref.id, m])),
+      };
+      showRouted();
+      openGroup("Recall");
+      const drill = screen.getByTestId("mistake-drill");
+      expect(drill).toHaveTextContent("Drill it: these questions again.");
+      fireEvent.click(within(drill).getByRole("link", { name: "Start a drill" }));
+      expect(JSON.parse(screen.getByTestId("arrived").textContent!)).toEqual({ marked: { tag: "recall", questionIds: ["r-new", "r-old"] } });
+    });
+
+    it("past a session's worth, says it takes the most recent", () => {
+      state.value = {
+        ...state.value,
+        marks: new Map(Array.from({ length: 23 }, (_, i) => mark(`r${i}`, ["recall"], "accountancy", { updatedAt: day((i % 28) + 1) })).map((m) => [m.ref.id, m])),
+      };
+      showRouted();
+      const drill = screen.getByTestId("mistake-drill");
+      expect(drill).toHaveTextContent("Drill it: the 20 you marked most recently, again.");
+      fireEvent.click(within(drill).getByRole("link", { name: "Start a drill" }));
+      const handed = JSON.parse(screen.getByTestId("arrived").textContent!) as { marked: { questionIds: string[] } };
+      expect(handed.marked.questionIds).toHaveLength(20);
+      expect(handed.marked.questionIds).not.toContain("r0");
+    });
+
+    it("one question is \"this question\"", () => {
+      state.value = { ...state.value, marks: new Map([mark("g", ["guessed"], "accountancy")].map((m) => [m.ref.id, m])) };
+      showRouted();
+      expect(screen.getByTestId("mistake-drill")).toHaveTextContent("Drill it: this question again.");
+    });
   });
 });

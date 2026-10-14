@@ -10,6 +10,9 @@ import { MemoryRouter } from "react-router-dom";
 
 const listBankQuestions = vi.fn();
 const formMix = vi.fn();
+const start = vi.fn();
+const uploadsByIds = vi.fn();
+const capturesByIds = vi.fn();
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ session: { access_token: "t" } }) }));
 vi.mock("@/academic", async (importOriginal) => {
@@ -26,11 +29,20 @@ vi.mock("@/academic", async (importOriginal) => {
       ...actual.PracticeService,
       listBankQuestions: (...a: unknown[]) => listBankQuestions(...a),
       formMix: (...a: unknown[]) => formMix(...a),
-      start: async () => "sid-1",
+      start: (...a: unknown[]) => start(...a),
       recordAttempt: vi.fn(),
+      finish: async () => null,
     },
   };
 });
+vi.mock("@/academic/services/studentUploadService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/academic/services/studentUploadService")>();
+  return { ...actual, StudentUploadService: { ...actual.StudentUploadService, listByIds: (...a: unknown[]) => uploadsByIds(...a) } };
+});
+vi.mock("@/academic/services/screenCaptureService", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/academic/services/screenCaptureService")>()),
+  listCaptureQuestionsByIds: (...a: unknown[]) => capturesByIds(...a),
+}));
 vi.mock("@/lib/premium", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/premium")>()),
   fetchPremiumStatus: async () => null,
@@ -58,6 +70,34 @@ describe("Practice — a mistake type's drill", () => {
     listBankQuestions.mockResolvedValue([QUESTION]);
     formMix.mockReset();
     formMix.mockResolvedValue({ mcq: 24, case_based: 10 });
+    start.mockReset();
+    start.mockResolvedValue("sid-1");
+    uploadsByIds.mockReset();
+    uploadsByIds.mockResolvedValue([]);
+    capturesByIds.mockReset();
+    capturesByIds.mockResolvedValue([]);
+  });
+
+  it("a chapter drill draws fresh questions from its chapter, in the paper's mix", async () => {
+    const opts = await run({ ...BASE, mode: "chapter", chapter: "Ratio Analysis", drill: MISTAKE_DRILLS.conceptual_gap });
+    expect(opts).toMatchObject({ subject: "Accountancy", chapter: "Ratio Analysis", numberAnswers: false, forms: null });
+    expect(opts.formMix).toEqual({ mcq: 24, case_based: 10 });
+  });
+
+  it("a drill at the paper's pace narrows nothing: the paper's own mix", async () => {
+    const opts = await run({ ...BASE, timeLimitSec: 1440, drill: MISTAKE_DRILLS.time_pressure });
+    expect(opts).toMatchObject({ numberAnswers: false, forms: null, formMix: { mcq: 24, case_based: 10 } });
+    expect(start.mock.calls[0][1]).toMatchObject({ _time_limit_sec: 1440 });
+  });
+
+  it("the marked questions again: exactly those, by their own ids, as a Mistake Book reattempt", async () => {
+    const opts = await run({ ...BASE, mode: "incorrect", subject: "Mixed", label: MISTAKE_DRILLS.recall.label, qCount: 2, marked: { questionIds: ["q1", "q9"] } });
+    expect(opts).toEqual({ ids: ["q1", "q9"], limit: 2 });
+    expect(uploadsByIds).toHaveBeenCalledWith(expect.anything(), ["q1", "q9"]);
+    expect(capturesByIds).toHaveBeenCalledWith(expect.anything(), ["q1", "q9"]);
+    // Never counted against a plan: the server reads the mode (rpc_record_question_attempt).
+    expect(start.mock.calls[0][1]).toMatchObject({ _practice_mode: "incorrect", _subject: "Accountancy", _count: 1 });
+    expect(formMix).not.toHaveBeenCalled();
   });
 
   it("a calculation drill asks for questions worked out to a figure", async () => {

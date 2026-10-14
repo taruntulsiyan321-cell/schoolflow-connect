@@ -249,24 +249,69 @@ describe("mistake types, lately against before", () => {
 });
 
 describe("a mistake type drives practice (C5)", () => {
-  it("names a drill for calculation errors and misread questions, and none for the rest", async () => {
+  it("decides every type in the catalogue (20261137000000): a drill, or a reason for none, never both", async () => {
+    const { MISTAKE_DRILLS, NO_DRILL } = await import("./questionMarks");
+    const seeded = readFileSync(join(process.cwd(), "supabase/migrations/20261137000000_a_student_marks_why_a_question_went_wrong.sql"), "utf8");
+    const catalogue = seeded.slice(seeded.indexOf("INSERT INTO public.mark_tags"));
+    const keys = [...catalogue.slice(0, catalogue.indexOf(";")).matchAll(/\('([a-z_]+)',/g)].map((m) => m[1]);
+    expect(keys).toHaveLength(9);
+    for (const key of keys) {
+      const decided = [key in MISTAKE_DRILLS, key in NO_DRILL].filter(Boolean).length;
+      expect(decided, `${key} must be a drill or have a reason for none, once`).toBe(1);
+    }
+    // Nothing decided that the catalogue does not have, and each drill is filed under its own type.
+    expect([...Object.keys(MISTAKE_DRILLS), ...Object.keys(NO_DRILL)].sort()).toEqual([...keys].sort());
+    for (const [tag, drill] of Object.entries(MISTAKE_DRILLS)) expect(drill.tag).toBe(tag);
+  });
+
+  it("drills each type by what it says went wrong", async () => {
     const { drillFor } = await import("./questionMarks");
-    expect(drillFor("calculation_error")).toMatchObject({ numberAnswers: true, forms: null });
-    expect(drillFor("misread_question")).toMatchObject({ numberAnswers: false, forms: ["statements", "assertion_reason"] });
-    for (const none of ["recall", "conceptual_gap", "guessed", "", null, undefined, "toString", "__proto__"]) {
+    // A kind of question, in a subject.
+    expect(drillFor("calculation_error")).toMatchObject({ draws: "kind", numberAnswers: true, forms: null, paced: false });
+    expect(drillFor("formula_error")).toMatchObject({ draws: "kind", numberAnswers: true, forms: null, paced: false });
+    expect(drillFor("misread_question")).toMatchObject({ draws: "kind", numberAnswers: false, forms: ["statements", "assertion_reason"] });
+    expect(drillFor("time_pressure")).toMatchObject({ draws: "kind", numberAnswers: false, forms: null, paced: true });
+    // Understanding: fresh questions from the chapter. Memory and guessing: the questions again.
+    expect(drillFor("conceptual_gap")).toMatchObject({ draws: "chapter" });
+    expect(drillFor("wrong_approach")).toMatchObject({ draws: "chapter" });
+    expect(drillFor("recall")).toMatchObject({ draws: "again" });
+    expect(drillFor("guessed")).toMatchObject({ draws: "again" });
+    for (const none of ["silly_mistake", "", null, undefined, "toString", "__proto__"]) {
       expect(drillFor(none)).toBeNull();
     }
   });
 
-  it("drills only types the catalogue has (20261137000000)", async () => {
-    const { MISTAKE_DRILLS } = await import("./questionMarks");
-    const seeded = readFileSync(join(process.cwd(), "supabase/migrations/20261137000000_a_student_marks_why_a_question_went_wrong.sql"), "utf8");
-    for (const tag of Object.keys(MISTAKE_DRILLS)) {
-      expect(seeded.includes(`('${tag}',`), `${tag} is not a mark tag`).toBe(true);
-      expect(MISTAKE_DRILLS[tag].tag).toBe(tag);
-    }
-    // CONTROL: a made-up tag is not in the catalogue.
-    expect(seeded.includes("('made_up_tag',")).toBe(false);
+  it("says why a type drives no drill, and only for such a type", async () => {
+    const { noDrillReason } = await import("./questionMarks");
+    expect(noDrillReason("silly_mistake")).toMatch(/^No drill for this one: /);
+    for (const other of ["calculation_error", "recall", "made_up_tag", null, "__proto__"]) expect(noDrillReason(other)).toBeNull();
+  });
+
+  it("runs a chapter drill in the chapter most of the marks are in, with its subject", async () => {
+    const { drillChapter } = await import("./questionMarks");
+    const at = (subject: string | null, chapter: string | null) => ({ subject, chapter });
+    expect(drillChapter([at("economics", "Money"), at("accountancy", "Ratio Analysis"), at("accountancy", "Ratio Analysis")]))
+      .toEqual({ subject: "accountancy", chapter: "Ratio Analysis" });
+    // One chapter name in two subjects is two chapters, so neither outweighs a chapter met twice.
+    expect(drillChapter([at("economics", "Introduction"), at("accountancy", "Introduction"), at("accountancy", "Ratio Analysis"), at("accountancy", "Ratio Analysis")]))
+      .toEqual({ subject: "accountancy", chapter: "Ratio Analysis" });
+    // A tie goes to the chapter met first.
+    expect(drillChapter([at("economics", "Introduction"), at("accountancy", "Introduction")]))
+      .toEqual({ subject: "economics", chapter: "Introduction" });
+    // A mark naming a subject or a chapter alone says nowhere to drill.
+    expect(drillChapter([at("accountancy", null), at(null, "Ratio Analysis"), at("economics", "Money")])).toEqual({ subject: "economics", chapter: "Money" });
+    expect(drillChapter([at("accountancy", null), at(null, "Ratio Analysis")])).toBeNull();
+  });
+
+  it("asks a session's worth of the marked questions again, the most recently marked first", async () => {
+    const { drillQuestionIds, AGAIN_LIMIT } = await import("./questionMarks");
+    const marked = (id: string, day: number) => ({ ref: { kind: "bank" as const, id }, updatedAt: `2026-10-${String(day).padStart(2, "0")}T10:00:00Z` });
+    expect(drillQuestionIds([marked("old", 1), marked("new", 9), marked("mid", 5)])).toEqual(["new", "mid", "old"]);
+    const many = Array.from({ length: AGAIN_LIMIT + 3 }, (_, i) => marked(`q${i}`, (i % 28) + 1));
+    const asked = drillQuestionIds(many);
+    expect(asked).toHaveLength(AGAIN_LIMIT);
+    // The three left out are the three marked longest ago.
+    expect(many.map((m) => m.ref.id).filter((id) => !asked.includes(id))).toEqual(["q0", "q1", "q2"]);
   });
 
   it("runs a drill in the subject most of the marks are in", async () => {

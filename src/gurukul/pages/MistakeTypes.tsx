@@ -6,11 +6,52 @@ import { EmptyState, GlassCard, PageHeader, ProgressBar, SubjectBadge, cn } from
 import { StudentErrorState, StudentListSkeleton } from "@/components/student/StudentPanelStates";
 import { QuestionText } from "@/components/QuestionText";
 import { displayChapter, displaySubject } from "@/lib/academicPresentation";
-import { pluralise } from "@/lib/plural";
-import { NO_TAG, bucketMarks, drillFor, drillSubject, risingTag, tagTrend } from "@/lib/questionMarks";
+import { pluralise, pluraliseWord } from "@/lib/plural";
+import {
+  NO_TAG, bucketMarks, drillChapter, drillFor, drillQuestionIds, drillSubject, noDrillReason, risingTag, tagTrend,
+  type QuestionMark,
+} from "@/lib/questionMarks";
 import { RECENT_WINDOW_DAYS } from "@/academic/metrics/thresholds";
 import { QuestionMarkBar } from "@/components/student/questionMarks/QuestionMarkBar";
 import { useQuestionMarks } from "@/components/student/questionMarks/useQuestionMarks";
+
+type DrillOffer = { says: string; to: string; state?: { marked: { tag: string; questionIds: string[] } } };
+
+/**
+ * The drill a group offers (C5): the sentence the student reads, and where
+ * Start goes. A kind of question in the subject most of these are in, fresh
+ * questions from the chapter most of them are in, or these questions again,
+ * handed over in router state. Null when the type drives none, or these
+ * marks name nowhere to drill.
+ */
+function drillOffer(tag: string, marks: QuestionMark[]): DrillOffer | null {
+  const drill = drillFor(tag);
+  if (!drill) return null;
+  if (drill.draws === "again") {
+    const questionIds = drillQuestionIds(marks);
+    return {
+      says: questionIds.length < marks.length
+        ? `the ${questionIds.length} you marked most recently, again.`
+        : `${pluraliseWord(questionIds.length, "this question", "these questions")} again.`,
+      to: "/student/practice",
+      state: { marked: { tag, questionIds } },
+    };
+  }
+  if (drill.draws === "chapter") {
+    const where = drillChapter(marks);
+    if (!where) return null;
+    return {
+      says: `fresh questions from ${displayChapter(where.chapter) || where.chapter}.`,
+      to: `/student/practice?${new URLSearchParams({ subject: where.subject, chapter: where.chapter, drill: tag })}`,
+    };
+  }
+  const subject = drillSubject(marks);
+  if (!subject) return null;
+  return {
+    says: `${drill.label.toLowerCase()}, in ${displaySubject(subject) || subject}.`,
+    to: `/student/practice?${new URLSearchParams({ subject, drill: tag })}`,
+  };
+}
 
 export default function MistakeTypes() {
   const { user } = useAuth();
@@ -131,11 +172,10 @@ export default function MistakeTypes() {
       <div className="space-y-3">
         {buckets.map((b) => {
           const isOpen = expanded === b.key;
-          // C5: a type a kind of question drills, in the subject most of these
-          // questions are in — the one chosen above, when one is, since the
-          // groups then hold only its questions.
-          const drill = drillFor(b.key);
-          const drillIn = drill ? drillSubject(b.marks) : null;
+          // C5: what this type drills, from these questions: those chosen by
+          // the subject above, when one is, since the groups then hold only its.
+          const offer = drillOffer(b.key, b.marks);
+          const noDrill = noDrillReason(b.key);
           return (
             <GlassCard key={b.key} className="overflow-hidden">
               <button
@@ -150,18 +190,22 @@ export default function MistakeTypes() {
                   {isOpen ? <ChevronDown className="h-4 w-4" aria-hidden /> : <ChevronRight className="h-4 w-4" aria-hidden />}
                 </span>
               </button>
-              {isOpen && drill && drillIn && (
+              {isOpen && offer && (
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 text-xs" data-testid="mistake-drill">
-                  <span className="text-muted-foreground">
-                    Drill it: {drill.label.toLowerCase()}, in {displaySubject(drillIn) || drillIn}.
-                  </span>
+                  <span className="text-muted-foreground">Drill it: {offer.says}</span>
                   <Link
-                    to={`/student/practice?${new URLSearchParams({ subject: drillIn, drill: drill.tag })}`}
+                    to={offer.to}
+                    state={offer.state}
                     className="rounded-lg bg-primary px-2.5 py-1 font-semibold text-primary-foreground hover:bg-primary/90"
                   >
                     Start a drill
                   </Link>
                 </div>
+              )}
+              {isOpen && noDrill && (
+                <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground" data-testid="mistake-no-drill">
+                  {noDrill}
+                </p>
               )}
               {isOpen && user && (
                 <ul className="divide-y divide-border border-t border-border">

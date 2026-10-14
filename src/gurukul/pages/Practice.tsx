@@ -4,8 +4,10 @@ import type { PageKey } from "@/gurukul/nav";
 import { useGurukulAcademicIdentity, useGurukulShellReady, useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, PracticeService, RecoveryEngineService, WEAK_CONCEPT_THRESHOLD, type CurriculumScope } from "@/academic";
-import { type MistakeDrill } from "@/lib/questionMarks";
-import { readLabelledLink } from "./practiceLink";
+import { drillFor } from "@/lib/questionMarks";
+import { readLabelledLink, type LinkDrill } from "./practiceLink";
+import { fetchExamPaper } from "@/lib/examPaper";
+import { secondsPerQuestion } from "@/academic/metrics/examPaper";
 import type { PracticeSessionRow } from "@/academic";
 import { attemptsToFinishPayload, persistAndGoToPracticeResult } from "@/lib/practiceSessionSnapshot";
 import { ReportQuestionButton } from "@/components/student/questionReports/ReportQuestionButton";
@@ -1172,8 +1174,14 @@ interface SessionConfig {
   difficulty: string; qCount: number; timeLimitSec: number | null;
   /** Previous Year Questions only — restricts to one exam year. */
   pyqYear?: number | null;
-  /** A mistake type's drill (C5): only the questions that type needs. */
-  drill?: MistakeDrill | null;
+  /** A mistake type's drill from a link (C5): a kind of question, or a chapter's fresh questions. */
+  drill?: LinkDrill | null;
+  /**
+   * A mistake type's "these questions again" drill (C5): the questions the
+   * student marked with it, asked in that order and nothing else, as AI
+   * Practice's are. It runs as a Mistake Book reattempt (mode "incorrect").
+   */
+  marked?: { questionIds: string[] } | null;
   /**
    * §5.4 — set when this session IS a revision check for that chapter.
    *
@@ -1348,6 +1356,10 @@ async function loadSessionQuestions(
     // The request's questions, as ai-practice ordered them.
     return loadQuestionsByOwnIds(ctx, config.ai.questionIds);
   }
+  if (config.marked) {
+    // The questions the student marked with one mistake type, as Mistake Types sent them.
+    return loadQuestionsByOwnIds(ctx, config.marked.questionIds);
+  }
   if (config.revision) {
     // §5.4 — the check is already built by a server function that can see this
     // student's whole attempt history. Exactly those questions, in that order
@@ -1384,21 +1396,31 @@ async function loadSessionQuestions(
         pyqOnly: true,
         examYear: config.pyqYear ?? null,
       });
-    default:
+    default: {
       // config.topic is a topic id from the picker, or a topic NAME from a
       // ?topic= link; listBankQuestions narrows each its own way.
-      // C7: in the real paper's mix of forms, unless a drill chose the forms.
+      // C7: in the real paper's mix of forms, unless a drill chose the kind.
+      const narrowed = drillNarrowing(config.drill);
       return PracticeService.listBankQuestions(ctx, {
         subject: config.subject,
         chapter: config.chapter,
         topic: config.topic,
         difficulty,
         limit: config.qCount,
-        forms: config.drill?.forms ?? null,
-        numberAnswers: config.drill?.numberAnswers ?? false,
-        formMix: config.drill ? null : await PracticeService.formMix(ctx, config.subject),
+        forms: narrowed?.forms ?? null,
+        numberAnswers: narrowed?.numberAnswers ?? false,
+        formMix: narrowed ? null : await PracticeService.formMix(ctx, config.subject),
       });
+    }
   }
+}
+
+/**
+ * What a drill narrows the bank to, or null when it narrows nothing: a
+ * chapter's fresh questions, and the paper's pace, are drawn in the paper's mix.
+ */
+function drillNarrowing(drill: SessionConfig["drill"]) {
+  return drill?.draws === "kind" && (drill.forms !== null || drill.numberAnswers) ? drill : null;
 }
 
 /**
@@ -1641,7 +1663,7 @@ export function Session({
           };
           // Upload: name the session from tagged questions when they agree —
           // never "Mixed"/"General" (Mistake Book / RPC placeholder defaults).
-          const engineSession = Boolean(config.recovery || config.revision || config.upload || config.ai);
+          const engineSession = Boolean(config.recovery || config.revision || config.upload || config.ai || config.marked);
           const sid = await PracticeService.start(ctx, {
             _subject: engineSession
               ? onlyOne(mapped.map((q) => q.subject)) ?? ""
@@ -2103,6 +2125,7 @@ export function Session({
       recovery: "The questions for this recovery session are no longer available. Open Recovery and start it again.",
       revision: "The questions for this revision check are no longer available. Open Revision and start it again.",
     };
+    const narrowed = drillNarrowing(config.drill);
     return (
       <div className="max-w-2xl mx-auto text-center py-16 space-y-4">
         <HelpCircle className="w-10 h-10 text-muted-foreground mx-auto"/>
@@ -2112,12 +2135,15 @@ export function Session({
             ? config.upload.practiseMode === "practise_from_notes"
               ? "No questions written from these notes yet."
               : "No practisable questions in this upload for that mode yet."
-            : config.drill
-              // A drill names what it looked for (C5): measured 2026-10-09, a
-              // CUET calculation drill finds none in Business Studies.
-              ? `The bank has no ${config.drill.label.toLowerCase()} in ${displaySubject(config.subject) || config.subject} yet.`
-              : (emptyByMode[config.mode] ??
-              "The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions.")}
+            : config.marked
+              // Reachable only if the marked questions left the bank after they were marked.
+              ? "The questions you marked are no longer available."
+              : narrowed
+                // A drill names what it looked for (C5): measured 2026-10-09, a
+                // CUET calculation drill finds none in Business Studies.
+                ? `The bank has no ${narrowed.label.toLowerCase()} in ${displaySubject(config.subject) || config.subject} yet.`
+                : (emptyByMode[config.mode] ??
+                "The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions.")}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           {config.mode === "weak" && onNavigate && (
@@ -2651,6 +2677,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     const handoff = (location.state ?? null) as {
       recovery?: SessionConfig["recovery"];
       revision?: SessionConfig["revision"];
+      marked?: { tag: string; questionIds: string[] };
     } | null;
 
     // A revision check arrives the same way and for the same reason: its
@@ -2699,6 +2726,30 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       return;
     }
 
+    // A mistake type's "these questions again" drill (C5) arrives the same
+    // way: its questions are the ones the student marked, which a link cannot
+    // carry. It is a Mistake Book reattempt, so it runs as one: never counted
+    // against a plan (the owner's ruling, 2026-09-27).
+    if (handoff?.marked) {
+      deepLinkHandled.current = true;
+      clearRouterState();
+      const ids = Array.isArray(handoff.marked.questionIds) ? handoff.marked.questionIds.filter(isUuid) : [];
+      if (ids.length === 0) return;
+      setModeKey("incorrect");
+      startSession({
+        mode: "incorrect",
+        label: drillFor(handoff.marked.tag)?.label ?? PRACTICE_MODE_LABELS.incorrect,
+        subject: "Mixed",
+        chapter: null,
+        topic: null,
+        difficulty: "mixed",
+        qCount: ids.length,
+        timeLimitSec: null,
+        marked: { questionIds: ids },
+      });
+      return;
+    }
+
     // ?mode=<instant mode> — used by Mistake Book's "Practice again", and
     // ?mode=skipped&chapter_id=<uuid> by Analysis's chapter rows.
     const modeRaw = searchParams.get("mode");
@@ -2726,7 +2777,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
 
     const mode = MODES.find((m) => m.key === link.mode) ?? MODES.find((m) => m.key === "chapter")!;
     setModeKey(link.mode);
-    startSession({
+    const session: SessionConfig = {
       mode: link.mode,
       label: link.drill?.label ?? mode.label,
       subject: link.subject || "Mixed",
@@ -2736,7 +2787,24 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       qCount: 20,
       timeLimitSec: null,
       drill: link.drill,
-    });
+    };
+    if (link.drill?.draws === "kind" && link.drill.paced) {
+      // Time pressure (C5): timed at the real paper's pace, the one every pace
+      // on Analysis is read against. With no paper there is no pace to keep,
+      // and the drill says so rather than running untimed.
+      fetchExamPaper().then(
+        (paper) => {
+          if (!paper) {
+            toast.error("There is no exam paper to keep pace with on this account.");
+            return;
+          }
+          startSession({ ...session, timeLimitSec: Math.round(session.qCount * secondsPerQuestion(paper)) });
+        },
+        () => toast.error("Couldn't read the paper's pace. Try the drill again."),
+      );
+      return;
+    }
+    startSession(session);
   }, [searchParams, setSearchParams, phase]);
 
   function startSession(cfg: SessionConfig) {

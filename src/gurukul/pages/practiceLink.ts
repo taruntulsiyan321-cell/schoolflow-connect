@@ -27,9 +27,23 @@ export type LabelledLink =
       subject: string | null;
       chapter: string | null;
       topic: string | null;
-      /** ?drill=<mistake type> from Mistake Types (C5); an unknown type is no drill. */
-      drill: MistakeDrill | null;
+      /**
+       * ?drill=<mistake type> from Mistake Types (C5): only a drill a link can
+       * carry, a kind of question or fresh questions from the chapter the link
+       * names. An "again" drill's questions come in router state, never in a
+       * link. An unknown type is no drill.
+       */
+      drill: LinkDrill | null;
     };
+
+export type LinkDrill = Extract<MistakeDrill, { draws: "kind" | "chapter" }>;
+
+function linkDrill(raw: string | null, chapter: string | null): LinkDrill | null {
+  const drill = drillFor(raw);
+  if (drill?.draws === "kind") return drill;
+  if (drill?.draws === "chapter" && chapter) return drill;
+  return null;
+}
 
 const real = (raw: string | null) => (raw && !isPlaceholderAcademicLabel(raw) ? raw.trim() : null);
 
@@ -54,5 +68,5 @@ export function readLabelledLink(params: URLSearchParams): LabelledLink {
   // was meant to avoid. It also wrote the topic name into
   // practice_sessions.chapter, inventing a chapter that does not exist.
   const mode = chapter ? "chapter" : topic ? "topic" : "subject";
-  return { kind: "session", mode, subject, chapter, topic, drill: drillFor(params.get("drill")) };
+  return { kind: "session", mode, subject, chapter, topic, drill: linkDrill(params.get("drill"), chapter) };
 }
