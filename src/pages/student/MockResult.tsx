@@ -13,6 +13,7 @@ import { toErrorMessage } from "@/lib/presentation";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import { markRefFromAttempt } from "@/lib/questionMarks";
 import { useQuestionMarks } from "@/components/student/questionMarks/useQuestionMarks";
+import { usePreviousYearPapers } from "@/hooks/usePreviousYearPapers";
 import { useQuestionReports } from "@/components/student/questionReports/useQuestionReports";
 import { readSessionAnalysisContext, type SessionAnalysisContext } from "@/lib/sessionAnalysisContext";
 import { analyseSession } from "@/components/student/sessionResult/analyseSession";
@@ -90,6 +91,7 @@ export default function MockResult() {
   const analysis = useMemo(() => analyseSession(rows, context), [rows, context]);
   const bankIds = useMemo(() => (result ? result.questions.map((q) => q.id) : []), [result]);
   const { reports, setReport } = useQuestionReports(user?.id, bankIds);
+  const papers = usePreviousYearPapers(bankIds);
 
   if (error) {
     return (
@@ -145,6 +147,7 @@ export default function MockResult() {
           markTags={markTags}
           onMark={setMark}
           report={reports.get(q.id) ?? null}
+          paper={papers.get(q.id) ?? null}
           onReport={setReport}
           onAskNova={(c) => {
             setNovaQuestionContext({

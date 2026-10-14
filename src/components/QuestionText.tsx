@@ -55,6 +55,31 @@ export function QuestionFormBadge({ text, options }: { text: unknown; options?: 
   );
 }
 
+/** A figure, a share or a sum of money reads right-aligned, so its digits line up down the column. */
+const NUMERIC_CELL = /^[-−(]?\s*(?:Rs\.?|₹)?\s*[\d,]+(?:\.\d+)?\s*%?\)?$/;
+
+/**
+ * The paper a previous-year question was set in — "PYQ · CUET (UG) 2023 ·
+ * 30 May · Shift 3 · Section A" — beside its form. A previous-year question is
+ * one with an exam year (practiceService.studentBankQuery); its label is its
+ * `source`, which 20261164000000 holds to that year. Nothing for any other
+ * question, and nothing for a private upload or capture, which has neither.
+ */
+export function PreviousYearBadge({ source, examYear }: { source?: unknown; examYear?: unknown }) {
+  if (typeof examYear !== "number" || !Number.isInteger(examYear)) return null;
+  const paper = typeof source === "string" && source.trim() ? source.trim() : `Previous year ${examYear}`;
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-foreground"
+      data-testid="question-paper"
+    >
+      <span className="text-primary">PYQ</span>
+      <span aria-hidden>·</span>
+      <span>{paper}</span>
+    </span>
+  );
+}
+
 function Block({ block }: { block: LayoutBlock }) {
   switch (block.kind) {
     case "case":
@@ -62,8 +87,33 @@ function Block({ block }: { block: LayoutBlock }) {
         <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm font-normal leading-relaxed text-foreground" data-testid="question-case">
           <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Case</div>
           <div className="space-y-2">
-            {block.paragraphs.map((p, i) => <p key={i}><MathText text={p} /></p>)}
+            {block.blocks.map((b, i) => <Block key={i} block={b} />)}
           </div>
+        </div>
+      );
+    case "table":
+      return (
+        <div className="overflow-x-auto" data-testid="question-table">
+          <table className="w-full border-collapse text-sm font-normal">
+            <thead>
+              <tr className="text-left">
+                {block.header.map((h, i) => (
+                  <th key={i} className="border border-border bg-muted/50 px-3 py-2 font-semibold"><MathText text={h} /></th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, i) => (
+                <tr key={i} className="align-top">
+                  {row.map((cell, k) => (
+                    <td key={k} className={cn("border border-border px-3 py-2", NUMERIC_CELL.test(cell) && "text-right tabular-nums")}>
+                      <MathText text={cell} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       );
     case "paragraph":

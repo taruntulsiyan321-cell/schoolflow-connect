@@ -22,6 +22,10 @@
  *                      Question: <the question>
  *   mcq                anything else
  *
+ * Any of them may carry a table of data, as pipe rows with a separator under
+ * the header row (TABLE_ROW, TABLE_RULE below) — a balance-sheet extract, a
+ * probability distribution. It is a block of the text, not a form.
+ *
  * Writers compose that text from parts (composeQuestion), so it is exact; the
  * app reads it back into blocks (readQuestionLayout) on every screen; and the
  * database classifies it (public.question_form_of, 20261141000000) into
@@ -125,15 +129,28 @@ export function formOf(question: string, options: ReadonlyArray<string> | null |
 
 export type LayoutItem = { label: string; text: string };
 export type LayoutBlock =
-  | { kind: "case"; paragraphs: string[] }
+  /** A case's passage is laid out like any text: paragraphs, lists, a table of its data. */
+  | { kind: "case"; blocks: LayoutBlock[] }
   | { kind: "paragraph"; lines: string[] }
   | { kind: "assertion_reason"; assertion: string; reason: string }
   | { kind: "list"; style: "roman" | "letter"; items: LayoutItem[] }
-  | { kind: "match"; list1Title: string | null; list1: LayoutItem[]; list2Title: string | null; list2: LayoutItem[] };
+  | { kind: "match"; list1Title: string | null; list1: LayoutItem[]; list2Title: string | null; list2: LayoutItem[] }
+  | { kind: "table"; header: string[]; rows: string[][] };
 
 const ROMAN_ITEM = /^(I|II|III|IV|V|VI|VII|VIII)\.\s+(.+)$/;
 const LETTER_ITEM = /^([A-H])\.\s+(.+)$/;
 const LIST_HEAD = /^List (I|II)(?:\s*\(([^)]*)\))?\s*:$/;
+/**
+ * A table, written as rows of pipes with a separator under its header row:
+ *   | Particulars | 31.3.2024 (Rs.) |
+ *   | --- | --- |
+ *   | Trade receivables | 18,000 |
+ * The separator is what makes it a table. Without it a line that only begins
+ * and ends with a bar — "|A| = |B|", a determinant — is ordinary text.
+ */
+const TABLE_ROW = /^\|.*\|$/;
+const TABLE_RULE = /^\|(?:\s*:?-{3,}:?\s*\|)+$/;
+const cellsOf = (row: string) => row.slice(1, -1).split("|").map((c) => c.trim());
 
 const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
 
@@ -149,7 +166,7 @@ export function readQuestionLayout(text: string, options?: ReadonlyArray<string>
 
   const cased = t.match(/^Case:\s*([\s\S]*?)\n\s*Question:\s*([\s\S]+)$/);
   if (cased) {
-    blocks.push({ kind: "case", paragraphs: cased[1].split(/\n\s*\n/).map(one).filter(Boolean) });
+    blocks.push({ kind: "case", blocks: lineBlocks(cased[1]) });
     t = cased[2].trim();
   }
 
@@ -200,6 +217,14 @@ function lineBlocks(text: string): LayoutBlock[] {
   while (i < lines.length) {
     const line = lines[i];
     if (!line) { flush(); i++; continue; }
+    if (TABLE_ROW.test(line) && TABLE_RULE.test(lines[i + 1] ?? "")) {
+      let end = i + 2;
+      while (end < lines.length && TABLE_ROW.test(lines[end]) && !TABLE_RULE.test(lines[end])) end++;
+      flush();
+      out.push({ kind: "table", header: cellsOf(line), rows: lines.slice(i + 2, end).map(cellsOf) });
+      i = end;
+      continue;
+    }
     const head = line.match(LIST_HEAD);
     if (head && head[1] === "I") {
       const [list1, after1] = items(i + 1, LETTER_ITEM);
@@ -225,13 +250,18 @@ function lineBlocks(text: string): LayoutBlock[] {
 
 /** The question as one line, for a card or a list: the layout's words, in order. */
 export function questionOneLine(text: string, options?: ReadonlyArray<string> | null): string {
-  return readQuestionLayout(text, options).map((b) => {
+  return oneLineOf(readQuestionLayout(text, options));
+}
+
+function oneLineOf(blocks: LayoutBlock[]): string {
+  return blocks.map((b) => {
     switch (b.kind) {
-      case "case": return b.paragraphs.join(" ");
+      case "case": return oneLineOf(b.blocks);
       case "paragraph": return b.lines.join(" ");
       case "assertion_reason": return `Assertion (A): ${b.assertion} Reason (R): ${b.reason}`;
       case "list": return b.items.map((it) => `${it.label}. ${it.text}`).join(" ");
       case "match": return [...b.list1, ...b.list2].map((it) => `${it.label}. ${it.text}`).join(" ");
+      case "table": return [b.header, ...b.rows].map((r) => r.filter(Boolean).join(" ")).join("; ");
     }
   }).join(" ");
 }

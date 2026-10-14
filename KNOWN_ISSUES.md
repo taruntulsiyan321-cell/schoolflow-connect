@@ -6043,3 +6043,91 @@ no other check failing:
 * an unnamed view.
 
 The file was restored after each one.
+
+## 136. CUET previous-year questions enter the bank — IN PROGRESS from 2026-10-14
+
+The owner gathered CUET previous-year questions from afterboards.in into `C:\Users\Tarun`:
+* Mathematics: 2,650 records, 2,648 distinct;
+* Accountancy: 2,200 records, 2,151 distinct;
+* Economics: 1,950 distinct;
+* Business Studies: 300 distinct.
+
+The owner ruled that every question is classified, tagged, explained and shown with its paper, and that every
+explanation is written in this session, not by OpenRouter.
+
+**What the scrape holds, measured.** Each record is the innerText of a rendered question card. It holds the paper
+("2023: 30 May Shift 3"), the site's topic and subtopic, a difficulty, a section (Mathematics: Common or Core), the
+question and its options. It holds **no answer key and no solution**: all 7,100 records end at an unexpanded "Show
+Solution". The NTA PDFs in the same folder cannot supply keys either:
+* they are scanned images;
+* `Mathematics_2023_NTA.pdf` is a 2022 Psychology paper;
+* the 2026 answer-key PDF maps NTA question ids, which the scrape does not carry.
+
+So each key is worked out and each explanation written here. A formula appears as its MathML leaves followed by its
+HTML text, and is rebuilt as LaTeX by hand. A question that depends on a figure the scrape did not keep is left out,
+with the reason recorded.
+
+**What was built (all live):**
+* **20261164000000.** `source_type` may be `previous_year`, and such a row must name its paper: it has an
+  `exam_year`, and the first year in its `source` label equals that year. The proof caught a NULL label slipping
+  through the CHECK; it is fixed with `coalesce(…, false)`. A negative control was run.
+* **A table block** in the shared layout reader (`questionForms.ts`) and in `QuestionText`. A table is pipe rows
+  with a `| --- |` rule under its header row; without the rule, `|A| = |B|` stays text. Figures are right-aligned.
+  A case's passage is now laid out like any text (a table inside it stays a table); it used to flatten every
+  paragraph to one line. Five edge functions import the module and were redeployed from the repo; anonymous
+  probes show 21/21 unchanged and `check:edge-drift` is clean.
+* **The paper on the question.** `PreviousYearBadge` ("PYQ · CUET (UG) 2023 · 30 May · Shift 3 · Section A") shows
+  in the practice runner (every mode, through `listBankQuestions`), on the result screen's question cards (practice
+  and mock, through `usePreviousYearPapers`) and in the Mistake Book. Tests cover each site with a control; 16 of
+  16 mutants are killed.
+* **Explanations** are composed by the app's own `composeExplanation`. Each must pass:
+  * the database's `explanation_is_proper`;
+  * the screens' `readExplanation`, which must lay it out in its parts.
+  The first batch was written with a single newline after the Answer line. The database rule took it, but the
+  screens showed it plain. That is the check that now exists, and the 29 live rows were rewritten.
+
+**How a question is loaded** (the import tooling lives in the session scratchpad):
+1. The question is converted to the app's layouts:
+   * NTA's (A)–(D) statements and sequences become roman items, and their options are re-lettered to match;
+   * match tables become List I / List II with "A-II" codes;
+   * passages become `Case:` / `Question:`;
+   * data tables become pipe tables.
+2. Before loading, a checker refuses a question for any of these:
+   * an explanation that fails either rule;
+   * a KaTeX error or a stray `$`;
+   * a match or sequence option that is not a code;
+   * an unknown chapter or topic;
+   * duplicate options.
+   Its control plants 9 faults and all 9 are refused.
+3. It is loaded as `source_type = 'previous_year'`, with:
+   * `exam_year`, and the paper as `source`;
+   * the CUET exam, board `cuet` and class 12;
+   * approved and active;
+   * explanation status `proper`, so the OpenRouter rewrite job never picks it up.
+   A repeat sitting of the same question folds into one row, and the label names every sitting.
+
+**Overlap with the existing bank**, matched on the wording (case and closing punctuation aside):
+* Accountancy has 11 matches (10 PW ebook rows, 1 school seed row); the other subjects have none.
+* An ebook row with the same options becomes the previous-year question in place.
+* An ebook row with other options is retired, and `replaced_by_question_id` points to the paper's version.
+* **Held:** "Debenture holders are:" (2022 · 8 Aug · Shift 2) is word for word a school-bank row (`112f6068`).
+  The active-row unique index (question, class, subject) refuses a second row with that text. The fix would be a
+  per-bank unique index, and the generated-question filing and report verdicts reason about the current one, so it
+  is not changed for one question. The owner's call.
+
+**Topics.** The Accountancy chapters' topic lists are messy:
+* near-duplicates ("Admission", "Admission of partner", "Admission of a New Partner");
+* other subjects' topics ("Marketing", "Planning").
+Ten of the Mathematics chapters had none. The previous-year questions are tagged to one curated NCERT-section list
+per chapter. An existing topic row is reused where its name fits, and a new curriculum topic is created otherwise.
+The legacy topics are left as they are.
+
+**Embeddings.** Every new bank row is embedded by the `embed-pending-questions` cron through OpenRouter's
+`text-embedding-3-small`, which is what AI Practice's search and duplicate check read. That is not an explanation,
+so it runs as for every question. For all 7,000 it costs a few cents. Say if it should not.
+
+**Old-syllabus questions.** Some 2022 questions are on topics NCERT has since dropped (sinking fund, cancellation
+of own debentures). They are real past questions and are kept, tagged under their topic (e.g. "Redemption of
+Debentures").
+
+**Progress** is recorded below as each subject completes.

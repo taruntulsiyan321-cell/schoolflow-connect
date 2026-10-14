@@ -24,6 +24,9 @@ export interface Mistake {
   /** Spec §11 — student_capture_questions.id when source=screen_capture. */
   captureQuestionId: string | null;
   aiAnswered: boolean;
+  /** A previous-year question's paper (PreviousYearBadge); null for any other. */
+  paperSource: string | null;
+  paperYear: number | null;
   /**
    * Can this question still be put in front of the student?
    *
@@ -64,6 +67,9 @@ export type MistakeRow = {
   ai_answered?: boolean;
   /** Filled by the reader from what still exists; absent means askable. */
   askable?: boolean;
+  /** A previous-year bank question's paper, filled by the reader from the bank (PreviousYearBadge). */
+  paper_source?: string | null;
+  paper_year?: number | null;
 };
 
 /**
@@ -169,5 +175,7 @@ export function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     captureQuestionId: row.capture_question_id ?? null,
     askable: row.askable !== false,
     aiAnswered: Boolean(row.ai_answered && row.upload_question_id),
+    paperSource: row.paper_source ?? null,
+    paperYear: row.paper_year ?? null,
   };
 }

@@ -22,7 +22,7 @@ import { toErrorMessage } from "@/lib/presentation";
 import { pluralise } from "@/lib/plural";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 import { ExplanationText } from "@/components/ExplanationText";
-import { QuestionFormBadge, QuestionText } from "@/components/QuestionText";
+import { PreviousYearBadge, QuestionFormBadge, QuestionText } from "@/components/QuestionText";
 import { markRefFromMistake } from "@/lib/questionMarks";
 import { QuestionMarkBar } from "@/components/student/questionMarks/QuestionMarkBar";
 import { useQuestionMarks } from "@/components/student/questionMarks/useQuestionMarks";
@@ -125,6 +125,7 @@ function MistakeCard({
               <SubjectBadge subject={mistake.subject}/>
               <DifficultyBadge level={mistake.difficulty ?? undefined}/>
               <QuestionFormBadge text={mistake.question} options={mistake.options}/>
+              <PreviousYearBadge source={mistake.paperSource} examYear={mistake.paperYear}/>
               <FreqBadge freq={mistake.frequency}/>
               <LuckyGuessBadge count={mistake.luckyGuesses}/>
               {mistake.aiAnswered && (
@@ -524,6 +525,8 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
           new Set(base.map((r) => r.question_id).filter((id): id is string => Boolean(id))),
         );
         const difficultyByBank = new Map<string, string>();
+        // A previous-year question's paper, shown on its card.
+        const paperByBank = new Map<string, { source: string | null; exam_year: number | null }>();
         // Which of those bank questions can still be ASKED (KNOWN_ISSUES 91).
         // Absent from the view is as final as inactive: the view already
         // withholds unapproved rows and anything outside this student's own
@@ -535,11 +538,12 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
             // and withholds correct_index and explanation, which this read
             // never wanted — and the base table is staff-only now.
             .from("question_bank_student")
-            .select("id, difficulty, is_active")
+            .select("id, difficulty, is_active, source, exam_year")
             .in("id", bankIds);
           for (const b of bankRows ?? []) {
-            const row = b as { id: string; difficulty: string | null; is_active: boolean | null };
+            const row = b as { id: string; difficulty: string | null; is_active: boolean | null; source: string | null; exam_year: number | null };
             if (row.difficulty) difficultyByBank.set(row.id, row.difficulty);
+            if (row.exam_year != null) paperByBank.set(row.id, { source: row.source, exam_year: row.exam_year });
             if (row.is_active !== false) bankActive.add(row.id);
           }
         }
@@ -627,6 +631,8 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
               difficulty: (r.question_id && difficultyByBank.get(r.question_id)) || r.difficulty || null,
               upload_question_id: uploadId,
               ai_answered: answerSource === "ai",
+              paper_source: (r.question_id && paperByBank.get(r.question_id)?.source) || null,
+              paper_year: (r.question_id && paperByBank.get(r.question_id)?.exam_year) || null,
             };
             return {
               ...enriched,

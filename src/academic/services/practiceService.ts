@@ -1547,6 +1547,9 @@ export const PracticeService = {
       chapter_id?: string | null;
       /** Spec §9.1 — student_uploads.id when from_upload. */
       upload_id?: string | null;
+      /** A previous-year bank question's paper (PreviousYearBadge); null for the student's own questions. */
+      source: string | null;
+      exam_year: number | null;
     };
 
     const bankById = new Map<string, PracticeReady>();
@@ -1591,6 +1594,8 @@ export const PracticeService = {
           ai_answered: row.answer_source === "ai",
           chapter_id: (row.chapter_id as string | null) ?? null,
           upload_id: (row.upload_id as string | null) ?? null,
+          source: null,
+          exam_year: null,
         });
       }
     }
@@ -1613,6 +1618,8 @@ export const PracticeService = {
           explanation: row.explanation,
           from_capture: true,
           chapter_id: row.chapter_id,
+          source: null,
+          exam_year: null,
         });
       }
     }
@@ -1647,6 +1654,8 @@ export const PracticeService = {
             }
           : { from_capture: true as const }),
         chapter_id: r.chapter_id,
+        source: null,
+        exam_year: null,
       };
     };
 
@@ -2146,12 +2155,17 @@ export const PracticeService = {
     // question_bank_student has no such columns. Nothing here needed them to
     // grade: rpc_record_question_attempt grades every bank question server-side
     // and returns its verdict, which is what the feedback screen shows.
+    // A previous-year question also brings the paper it was set in
+    // (source, exam_year), which the question card shows beside it.
     const { data: full, error: fullError } = await client
       .from("question_bank_student")
-      .select("id, difficulty, question, options")
+      .select("id, difficulty, question, options, source, exam_year")
       .in("id", drawn.map((r) => r.id));
     throwIfError(fullError, "Failed to load practice questions");
-    type QuestionText = { id: string; difficulty: string | null; question: string; options: unknown };
+    type QuestionText = {
+      id: string; difficulty: string | null; question: string; options: unknown;
+      source: string | null; exam_year: number | null;
+    };
     const text = new Map(((full ?? []) as QuestionText[]).map((q) => [q.id, q]));
     return drawn.flatMap((r) => {
       const q = text.get(r.id);
@@ -2163,6 +2177,8 @@ export const PracticeService = {
         difficulty: q.difficulty,
         question: q.question,
         options: q.options,
+        source: q.source,
+        exam_year: q.exam_year,
       }];
     });
   },

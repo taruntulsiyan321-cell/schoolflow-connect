@@ -212,3 +212,51 @@ describe("a written question in each form", () => {
     expect(readRequestReply({ kind: "practice", chapter: "C1", form: "long answer" }, syllabus)).toMatchObject({ form: null });
   });
 });
+
+describe("a table of data in a question", () => {
+  const CASH = [
+    "The following further information is given:",
+    "| Particulars | 31.3.2020 (Rs.) | 31.3.2019 (Rs.) |",
+    "| --- | --- | --- |",
+    "| Cash | 36,000 | 30,000 |",
+    "| Trade receivable | 18,000 | 12,000 |",
+    "The net cash flow from operating activities is:",
+  ].join("\n");
+
+  it("is read as its header and its rows, between the text around it", () => {
+    expect(readQuestionLayout(CASH)).toEqual([
+      { kind: "paragraph", lines: ["The following further information is given:"] },
+      { kind: "table", header: ["Particulars", "31.3.2020 (Rs.)", "31.3.2019 (Rs.)"], rows: [["Cash", "36,000", "30,000"], ["Trade receivable", "18,000", "12,000"]] },
+      { kind: "paragraph", lines: ["The net cash flow from operating activities is:"] },
+    ]);
+  });
+
+  it("CONTROL: a line that only begins and ends with a bar is text — a determinant is not a table", () => {
+    // Each middle line begins and ends with a bar, as a table row does.
+    const det = "Given that\n|A| = |B|\n|x| + |y|\nfind A.";
+    expect(readQuestionLayout(det).map((b) => b.kind)).toEqual(["paragraph"]);
+  });
+
+  it("stays a table inside a case's passage, which used to flatten every paragraph to one line", () => {
+    const text = `Case: Asha and Binu share profits equally. Their balances were:\n\n| Account | Rs. |\n| --- | --- |\n| Capital | 50,000 |\nQuestion: What is Asha's share of the capital?`;
+    const [box, ask] = readQuestionLayout(text);
+    expect(box).toEqual({
+      kind: "case",
+      blocks: [
+        { kind: "paragraph", lines: ["Asha and Binu share profits equally. Their balances were:"] },
+        { kind: "table", header: ["Account", "Rs."], rows: [["Capital", "50,000"]] },
+      ],
+    });
+    expect(ask).toEqual({ kind: "paragraph", lines: ["What is Asha's share of the capital?"] });
+  });
+
+  it("on one line for a card: its cells, row by row", () => {
+    expect(questionOneLine(CASH)).toBe(
+      "The following further information is given: Particulars 31.3.2020 (Rs.) 31.3.2019 (Rs.); Cash 36,000 30,000; Trade receivable 18,000 12,000 The net cash flow from operating activities is:",
+    );
+  });
+
+  it("is not a form: the question it sits in is still a direct question", () => {
+    expect(formOf(CASH, ["Rs.74,000", "Rs.75,000", "Rs.93,000", "Rs.79,000"])).toBe("mcq");
+  });
+});

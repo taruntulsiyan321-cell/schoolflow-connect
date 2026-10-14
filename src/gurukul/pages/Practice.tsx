@@ -44,7 +44,7 @@ import { listCaptureQuestionsByIds } from "@/academic/services/screenCaptureServ
 import { EMPTY_LIST, LOADING_LIST, listItems, type ListState } from "@/lib/listState";
 import { withAlpha } from "@/lib/colorAlpha";
 import { MathText } from "@/components/MathText";
-import { QuestionFormBadge, QuestionText } from "@/components/QuestionText";
+import { PreviousYearBadge, QuestionFormBadge, QuestionText } from "@/components/QuestionText";
 import {
   BookOpen, Clock, Target,
   BarChart2, Search,
@@ -135,6 +135,9 @@ type BankQuestion = {
   aiAnswered?: boolean;
   /** Spec §5.1 — real chapters.id when tagged; null when untagged. */
   chapterId?: string | null;
+  /** A previous-year question's paper (PreviousYearBadge); bank rows only. */
+  source?: string | null;
+  examYear?: number | null;
   /** Spec §9.1 — student_uploads.id when fromUpload (Incorrect + Custom). */
   uploadId?: string | null;
   /** Private rows only — owner-readable key for non-bank grading. */
@@ -1619,6 +1622,8 @@ export function Session({
               fromCapture,
               aiAnswered: fromUpload && "ai_answered" in r ? Boolean(r.ai_answered) : false,
               chapterId: "chapter_id" in r ? (r.chapter_id ?? null) : null,
+              source: !privateQ && "source" in r ? r.source : null,
+              examYear: !privateQ && "exam_year" in r ? r.exam_year : null,
               uploadId,
               correctIndex: privateQ ? correctIndex : null,
               explanation: privateQ ? explanation : null,
@@ -2210,6 +2215,7 @@ export function Session({
             {subj && <SubjectBadge subject={subj.name} color={subj.color}/>}
             <DifficultyBadge level={q.difficulty}/>
             <QuestionFormBadge text={q.question} options={q.options}/>
+            <PreviousYearBadge source={q.source} examYear={q.examYear}/>
             <span className="text-[10px] text-muted-foreground">{displayChapter(q.chapter)}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">

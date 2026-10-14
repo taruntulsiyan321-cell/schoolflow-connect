@@ -94,6 +94,12 @@ fixture is refused): rebuild it, with the A2 review on its items.
 "PW CUET ebook …". Confirm the product may use them; if not, they are replaced
 by A2-gated questions before launch.
 
+**A8. The CUET previous-year questions the owner gathered — IN PROGRESS (KNOWN_ISSUES 136).** Owner,
+2026-10-14: Mathematics, Accountancy, Economics and Business Studies (about 7,050 distinct questions) into the
+bank, each classified to its chapter and topic, keyed, explained in this session (never by OpenRouter), and shown
+with the paper it was set in. The scrape carries no answer keys. The display (paper badge, tables) is live;
+questions load batch by batch.
+
 ## B. The mock creator
 
 Owner, 2026-10-03/04. A student asks for a mock — a whole subject, or one

@@ -1,7 +1,8 @@
 import { Check, Timer, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { MathText } from "@/components/MathText";
-import { QuestionFormBadge, QuestionText } from "@/components/QuestionText";
+import { PreviousYearBadge, QuestionFormBadge, QuestionText } from "@/components/QuestionText";
+import type { PreviousYearPaper } from "@/hooks/usePreviousYearPapers";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { QuestionMarkBar } from "@/components/student/questionMarks/QuestionMarkBar";
 import { ReportQuestionButton } from "@/components/student/questionReports/ReportQuestionButton";
@@ -28,6 +29,8 @@ type Props = {
   report: QuestionReport | null;
   onReport: (report: QuestionReport) => void;
   onAskNova: (context: { question: string; options: string[]; correctIndex: number | null; selectedText: string; selectedIndex: number | null }) => void;
+  /** The paper a previous-year question was set in (usePreviousYearPapers); absent for any other. */
+  paper?: PreviousYearPaper | null;
 };
 
 /**
@@ -36,7 +39,7 @@ type Props = {
  * own tools — explain it, mark why it went wrong, report it.
  */
 export function SessionQuestionCard({
-  attempt: a, order, notes, subjectRaw, chapterRaw, sessionId, userId, mark, markTags, onMark, report, onReport, onAskNova,
+  attempt: a, order, notes, subjectRaw, chapterRaw, sessionId, userId, mark, markTags, onMark, report, onReport, onAskNova, paper,
 }: Props) {
   const gq = a.generated_question ?? {};
   const opts: string[] = Array.isArray(gq.options) ? gq.options : [];
@@ -53,6 +56,7 @@ export function SessionQuestionCard({
         <span className="flex flex-wrap items-center gap-2">
           Q{order + 1}{a.skipped ? " · Skipped" : ""}
           <QuestionFormBadge text={questionText} options={opts} />
+          <PreviousYearBadge source={paper?.source} examYear={paper?.exam_year} />
           {notes.map((n) => (
             <span key={n} className="rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[10px] font-semibold text-foreground">{n}</span>
           ))}

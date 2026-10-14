@@ -15,6 +15,8 @@ const state = vi.hoisted(() => ({
   contextFails: false,
   contextAsked: [] as string[],
   navigated: [] as unknown[],
+  papers: new Map() as Map<string, { source: string | null; exam_year: number | null }>,
+  papersAsked: [] as string[],
 }));
 
 vi.mock("@/lib/mockTest", async (orig) => ({
@@ -36,6 +38,12 @@ vi.mock("@/components/student/questionMarks/useQuestionMarks", () => ({
 }));
 vi.mock("@/components/student/questionReports/useQuestionReports", () => ({
   useQuestionReports: () => ({ reports: new Map(), setReport: vi.fn() }),
+}));
+vi.mock("@/hooks/usePreviousYearPapers", () => ({
+  usePreviousYearPapers: (ids: string[]) => {
+    state.papersAsked = ids;
+    return state.papers;
+  },
 }));
 vi.mock("@/components/learn/ExplainPanel", () => ({ ExplainPanel: () => null }));
 vi.mock("@/components/MathText", () => ({ MathText: ({ text }: { text: string }) => <span>{text}</span> }));
@@ -116,6 +124,8 @@ const tab = (name: string) => fireEvent.click(screen.getByRole("tab", { name }))
 Element.prototype.scrollIntoView = function () {};
 
 beforeEach(() => {
+  state.papers = new Map();
+  state.papersAsked = [];
   state.result = result();
   state.error = null;
   state.context = context();
@@ -254,6 +264,17 @@ describe("Questions: every question with its answer", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Skipped \(/ }));
     expect(screen.getByText("Question number 4?")).toBeInTheDocument();
     expect(screen.queryByText("Question number 3?")).toBeNull();
+  });
+
+  it("a previous-year question names the paper it was set in, and no other question does", async () => {
+    state.papers = new Map([["q2", { source: "CUET (UG) 2023 · 30 May · Shift 3", exam_year: 2023 }]]);
+    draw();
+    await screen.findByTestId("summary-score");
+    tab("Questions");
+    expect(state.papersAsked).toEqual(["q1", "q2", "q3", "q4"]);
+    const cards = screen.getAllByTestId("session-question");
+    expect(within(cards[1]).getByTestId("question-paper")).toHaveTextContent("PYQ·CUET (UG) 2023 · 30 May · Shift 3");
+    for (const i of [0, 2, 3]) expect(within(cards[i]).queryByTestId("question-paper")).toBeNull();
   });
 
   it("explains a withdrawn question instead of drawing an empty one", async () => {

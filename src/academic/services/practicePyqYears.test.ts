@@ -11,13 +11,14 @@ import { selectsQuestionText } from "@/test/bankStub";
 
 type Row = {
   id: string; subject: string; chapter: string; topic_id: string | null; topics: null;
-  exam_year: number | null; is_active: boolean; is_approved: boolean; class_level: number;
+  exam_year: number | null; is_active: boolean; is_approved: boolean; class_level: number; source: string | null;
 };
 
 let bank: Row[] = [];
 const row = (id: string, subject: string, exam_year: number | null, extra: Partial<Row> = {}): Row => ({
   id, subject, chapter: "Chapter", topic_id: null, topics: null, exam_year,
-  is_active: true, is_approved: true, class_level: 10, ...extra,
+  is_active: true, is_approved: true, class_level: 10,
+  source: exam_year == null ? "PW CUET ebook" : `CUET (UG) ${exam_year} · 30 May · Shift 3`, ...extra,
 });
 
 vi.mock("./context", async (importOriginal) => {
@@ -47,7 +48,16 @@ vi.mock("../repository/base", () => {
     self.then = (resolve: (v: unknown) => unknown) => {
       const rows = bank.filter((r) => keep.every((k) => k(r)));
       if (selectsQuestionText(select)) {
-        return resolve({ data: rows.map((r) => ({ id: r.id, difficulty: "medium", question: `Q ${r.id}`, options: ["a", "b"] })), error: null });
+        // Only the columns asked for: a read that stopped asking for the paper gets none.
+        const asked = new Set(select.split(",").map((c) => c.trim()));
+        return resolve({
+          data: rows.map((r) => ({
+            id: r.id, difficulty: "medium", question: `Q ${r.id}`, options: ["a", "b"],
+            ...(asked.has("source") ? { source: r.source } : {}),
+            ...(asked.has("exam_year") ? { exam_year: r.exam_year } : {}),
+          })),
+          error: null,
+        });
       }
       const [a, b] = range ?? [0, rows.length - 1];
       return resolve({ data: rows.slice(a, b + 1), count: wantCount ? rows.length : null, error: null });
@@ -119,5 +129,18 @@ describe("a previous-year session", () => {
   it("POSITIVE CONTROL: the same pool without the PYQ filter holds the questions that have no year", async () => {
     const drawn = await PracticeService.listBankQuestions(ctx, { limit: 90 });
     expect(drawn.map((q) => q.id)).toEqual(expect.arrayContaining(["m-none-a", "m-none-b", "s-none-a"]));
+  });
+});
+
+describe("the paper each question was set in", () => {
+  it("comes with every question served, for the question card to show", async () => {
+    const drawn = await PracticeService.listBankQuestions(ctx, { limit: 90 });
+    const byId = new Map(bank.map((r) => [r.id, r]));
+    expect(drawn.length).toBeGreaterThan(0);
+    for (const q of drawn) {
+      expect(q.exam_year, q.id).toBe(byId.get(q.id)?.exam_year);
+      expect(q.source, q.id).toBe(byId.get(q.id)?.source);
+    }
+    expect(drawn.find((q) => q.id === "m-2023-a")?.source).toBe("CUET (UG) 2023 · 30 May · Shift 3");
   });
 });

@@ -48,6 +48,7 @@ import { SummaryTab } from "@/components/student/sessionResult/SummaryTab";
 import { TimeTab } from "@/components/student/sessionResult/TimeTab";
 import { TopicsTab } from "@/components/student/sessionResult/TopicsTab";
 import type { AttemptRow } from "@/components/student/sessionResult/types";
+import { usePreviousYearPapers } from "@/hooks/usePreviousYearPapers";
 
 function readLocalState(id: string): PracticeSessionResultState | null {
   try {
@@ -156,6 +157,7 @@ export default function PracticeSessionResult() {
     [displayAttempts],
   );
   const { reports, setReport } = useQuestionReports(user?.id, bankIds);
+  const papers = usePreviousYearPapers(bankIds);
 
   // The comparison, the exam marks and the questions met before need what the
   // session's own rows do not hold (20261143000000). Without it — offline, or
@@ -392,6 +394,7 @@ export default function PracticeSessionResult() {
           markTags={markTags}
           onMark={setMark}
           report={markRef?.kind === "bank" ? reports.get(markRef.id) ?? null : null}
+          paper={markRef?.kind === "bank" ? papers.get(markRef.id) ?? null : null}
           onReport={setReport}
           onAskNova={(q) => {
             setNovaQuestionContext({

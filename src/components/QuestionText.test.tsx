@@ -9,7 +9,7 @@ import { render, screen, within } from "@testing-library/react";
  */
 vi.mock("@/components/MathText", () => ({ MathText: ({ text }: { text: string }) => <span>{text}</span> }));
 
-import { QuestionFormBadge, QuestionText } from "./QuestionText";
+import { PreviousYearBadge, QuestionFormBadge, QuestionText } from "./QuestionText";
 
 type Fixture = { form: string; text: string; options: string[]; parts?: unknown };
 const MIGRATION = readFileSync("supabase/migrations/20261141000000_every_question_form_is_laid_out.sql", "utf8");
@@ -81,6 +81,42 @@ describe("a question as it is shown", () => {
 
   it("nothing for a question with no text", () => {
     const { container } = render(<QuestionText text={null} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe("a table of data, as it is shown", () => {
+  const TEXT = "Given:\n| Particulars | 2020 (Rs.) |\n| --- | --- |\n| Cash | 36,000 |\n| Bank overdraft | - |\nFind the cash flow.";
+
+  it("has its header cells and its rows, figures right-aligned and words not", () => {
+    render(<QuestionText text={TEXT} />);
+    const table = within(screen.getByTestId("question-table")).getByRole("table");
+    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Particulars", "2020 (Rs.)"]);
+    const rows = within(table).getAllByRole("row").slice(1).map((r) => within(r).getAllByRole("cell"));
+    expect(rows.map((r) => r.map((c) => c.textContent))).toEqual([["Cash", "36,000"], ["Bank overdraft", "-"]]);
+    expect(rows[0][1]).toHaveClass("text-right");
+    expect(rows[0][0]).not.toHaveClass("text-right");
+  });
+
+  it("inside a case, in the case's own box", () => {
+    render(<QuestionText text={"Case: The firm's balances were:\n\n| Account | Rs. |\n| --- | --- |\n| Capital | 50,000 |\nQuestion: What is the capital?"} />);
+    expect(within(screen.getByTestId("question-case")).getByTestId("question-table")).toBeInTheDocument();
+  });
+});
+
+describe("the paper a previous-year question was set in", () => {
+  it("is named beside the question", () => {
+    render(<PreviousYearBadge source="CUET (UG) 2023 · 30 May · Shift 3 · Section A" examYear={2023} />);
+    expect(screen.getByTestId("question-paper")).toHaveTextContent("PYQ·CUET (UG) 2023 · 30 May · Shift 3 · Section A");
+  });
+
+  it("says the year when the paper has no label", () => {
+    render(<PreviousYearBadge source={null} examYear={2022} />);
+    expect(screen.getByTestId("question-paper")).toHaveTextContent("PYQ·Previous year 2022");
+  });
+
+  it("CONTROL: nothing for a question with no exam year, whatever its source says", () => {
+    const { container } = render(<PreviousYearBadge source="PW CUET ebook · Accountancy" examYear={null} />);
     expect(container).toBeEmptyDOMElement();
   });
 });
