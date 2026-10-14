@@ -11,6 +11,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useProfilePhoto } from "@/hooks/useProfilePhoto";
 import { StudentAvatar } from "@/components/student/StudentAvatar";
 import { cn, XPBar, EASE_OUT, springSnappy } from "./shared";
+import { NovaPopup } from "./NovaPopup";
 import {
   Home, BookOpen, Brain,
   ChevronLeft, ChevronRight, Bell,
@@ -364,10 +365,17 @@ export default function Layout({
             transition={{ duration: 0.18, ease: EASE_OUT }}
             className={FILLS_SCREEN.has(page)
               ? "h-full max-w-5xl mx-auto flex flex-col pt-4 sm:pt-6"
-              : "p-4 sm:p-6 max-w-5xl mx-auto"}>
+              // pb-24: room under the last thing on the page for the Nova
+              // button, so it never sits over a page's last control.
+              : "p-4 pb-24 sm:p-6 sm:pb-24 max-w-5xl mx-auto"}>
             {children}
           </motion.div>
         </main>
+
+        {/* Nova on every screen but its own (D2). Out here, not inside the page
+            area above, which re-mounts on every navigation and would lose a
+            conversation in flight. A mock paper renders without this shell. */}
+        {page !== "aicoach" && <NovaPopup />}
 
         {/* On a phone: one tab per head. A head opens its first page.
             The bar is the column's last row, not laid over the page: nothing

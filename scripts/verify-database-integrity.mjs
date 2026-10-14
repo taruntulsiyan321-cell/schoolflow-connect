@@ -668,17 +668,28 @@ async function main() {
   );
 
   // ---- Chunk 3: people ------------------------------------------------
+  // An enrolment places a student in a school's section for a year, and
+  // attendance counts from it (10.27). An exam account (schools.kind =
+  // 'individual', a tenant of one) has no section, no year and no
+  // attendance, so these are a school student's rules. The scope is
+  // "not individual" rather than "= 'school'", so a student with no school,
+  // or a kind added later, is held to them until ruled otherwise. And
+  // in_scope must be above zero, or the checks would pass having read nobody.
+  const SCHOOL_STUDENTS = `FROM public.students s LEFT JOIN public.schools sc ON sc.id = s.school_id
+      WHERE sc.kind IS DISTINCT FROM 'individual'`;
   await check(
-    "every student has an enrolment_date (10.27: attendance counts from it, never session start)",
-    `SELECT count(*)::int AS n FROM public.students WHERE enrolment_date IS NULL`,
-    (r) => r[0].n === 0,
+    "every school student has an enrolment_date (10.27: attendance counts from it, never session start)",
+    `SELECT count(*) FILTER (WHERE s.enrolment_date IS NULL)::int AS n, count(*)::int AS in_scope
+      ${SCHOOL_STUDENTS}`,
+    (r) => r[0].n === 0 && r[0].in_scope > 0,
   );
   await check(
-    "every student has exactly one open enrolment row (section history is kept, not overwritten)",
-    `SELECT count(*)::int AS n FROM public.students s
-      WHERE NOT EXISTS (SELECT 1 FROM public.student_enrolments e
-                         WHERE e.student_id = s.id AND e.to_date IS NULL)`,
-    (r) => r[0].n === 0,
+    "every school student has exactly one open enrolment row (section history is kept, not overwritten)",
+    `SELECT count(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM public.student_enrolments e
+                                                WHERE e.student_id = s.id AND e.to_date IS NULL))::int AS n,
+            count(*)::int AS in_scope
+      ${SCHOOL_STUDENTS}`,
+    (r) => r[0].n === 0 && r[0].in_scope > 0,
   );
   await check(
     "roll numbers are unique per (section, year) and reusable elsewhere",
@@ -783,34 +794,48 @@ async function main() {
   // the first time this runs. A view without it inherits its owner's rights
   // and becomes a hole around every policy on its base tables.
   //
-  // ONE view is exempt, and the exemption is not by name — a name would go
-  // green the moment someone gutted the view. `attendance_day_edits` reads
-  // `academic_audit`, which §10.18 reserves to admin, so that a PRINCIPAL can
-  // see that an attendance figure moved without being handed the audit log.
-  // Made security_invoker it would silently return nothing to exactly the
-  // people who use it, with this gate green. Because RLS therefore never runs
-  // for it, both fences live in the view BODY, and this check requires them:
-  // remove either one and the view is flagged again.
+  // Two views run as their owner on purpose, each for a stated reason. RLS
+  // therefore never runs for them, so each one's fence lives in its BODY, and
+  // the exemption is by name AND body: gut a fence, or add an answer column,
+  // and the view is flagged again.
+  //   attendance_day_edits reads `academic_audit`, which §10.18 reserves to
+  //     admin, so that a PRINCIPAL can see that an attendance figure moved
+  //     without being handed the audit log. Made security_invoker it would
+  //     silently return nothing to exactly the people who use it.
+  //   question_bank_student is students' only door into the bank
+  //     (20261049000000, KNOWN_ISSUES 68): the base table is staff-only
+  //     because it holds the answers. So the view serves approved questions of
+  //     the caller's own board or exam, and leaves every answer column out.
+  const SELF_FENCED = {
+    attendance_day_edits: { fences: [/my_accessible_school_ids/, /is_principal_or_admin/], withholds: [] },
+    question_bank_student: {
+      fences: [/WHERE\s+is_approved\b/, /get_my_school_id\(\)/],
+      withholds: ["correct_index", "explanation", "answer"],
+    },
+  };
+  const NON_INVOKER_VIEWS = `SELECT c.relname, pg_get_viewdef(c.oid, true) AS def,
+        array(SELECT a.attname::text FROM pg_attribute a
+               WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped) AS cols
+      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relkind = 'v'
+        AND coalesce(c.reloptions::text, '') NOT LIKE '%security_invoker=true%'`;
   await check(
     "every view in public is security_invoker, or fences the caller itself in its body",
-    `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relkind = 'v'
-        AND coalesce(c.reloptions::text, '') NOT LIKE '%security_invoker=true%'
-        AND NOT (
-          pg_get_viewdef(c.oid, true) LIKE '%my_accessible_school_ids%'
-          AND pg_get_viewdef(c.oid, true) LIKE '%is_principal_or_admin%'
-        )`,
-    (r) => r.length === 0,
+    NON_INVOKER_VIEWS,
+    (r) => r.every((v) => {
+      const rule = SELF_FENCED[v.relname];
+      return Boolean(rule)
+        && rule.fences.every((f) => f.test(v.def))
+        && rule.withholds.every((col) => !v.cols.includes(col));
+    }),
   );
-  // ...and the exemption must not become a way to stop being watched: the one
-  // view using it is named here so a SECOND one appearing is visible, and so a
+  // ...and the exemption must not become a way to stop being watched: the
+  // views using it are named, so a third one appearing is visible, and a
   // reader can see exactly how large the exception is.
   await check(
-    "exactly one view relies on fencing itself, and it is the one that has a reason",
-    `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relkind = 'v'
-        AND coalesce(c.reloptions::text, '') NOT LIKE '%security_invoker=true%'`,
-    (r) => r.length === 1 && r[0].relname === "attendance_day_edits",
+    "exactly the two named views rely on fencing themselves",
+    NON_INVOKER_VIEWS,
+    (r) => r.map((v) => v.relname).sort().join() === Object.keys(SELF_FENCED).sort().join(),
   );
   // And a non-invoker view must never be readable signed out, fence or no
   // fence: anon has no school, but a surface that answers is still a surface.

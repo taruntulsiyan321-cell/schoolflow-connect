@@ -128,3 +128,35 @@ describe("the legacy dark colour classes are gone from the app (E1)", () => {
     expect(css).not.toMatch(/\[class\*="(bg|text|border)-\[#/);
   });
 });
+
+describe("no rule positions or clips every button (D2)", () => {
+  // `.gurukul-student button { position: relative; overflow: hidden }` was a
+  // press-ripple's scaffolding on every button in the panel. It outranked the
+  // Nova button's own `fixed` (a class), so the button sat in the page's flow
+  // at the bottom left instead of over the page (measured 2026-10-14). Deleting
+  // it moved nothing else on 15 screens at two widths, and no button's content
+  // spilled outside it, so it supported nothing but the ripple.
+  const PLACEMENT = /(^|;|\{)\s*(position|overflow|inset|top|right|bottom|left)\s*:/;
+  const buttonRules = (css: string) =>
+    [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter(([, sel]) => sel.split(",").some((s) => /(^|\s)button\s*$/.test(s.trim())))
+      .map(([, sel, body]) => ({ sel: sel.trim(), body }));
+
+  it("no element rule sets a button's placement", () => {
+    for (const rel of THEMES) {
+      const offenders = buttonRules(stripComments(readFileSync(join(process.cwd(), rel), "utf8")))
+        .filter((r) => PLACEMENT.test(`{${r.body}`))
+        .map((r) => `${rel}: ${r.sel} {${r.body.trim()}}`);
+      expect(offenders, offenders.join("\n")).toEqual([]);
+    }
+  });
+
+  it("CONTROL: the check finds the rule that was removed, and passes a button rule that only styles", () => {
+    const removed = ".gurukul-student button { position: relative; overflow: hidden; }";
+    const styling = ".gurukul-student button { font-weight: 700; }";
+    expect(buttonRules(removed).filter((r) => PLACEMENT.test(`{${r.body}`))).toHaveLength(1);
+    expect(buttonRules(styling).filter((r) => PLACEMENT.test(`{${r.body}`))).toHaveLength(0);
+    // And it reads the real theme's button rules (they exist; they style only).
+    expect(buttonRules(stripComments(readFileSync(join(process.cwd(), "src", "gurukul", "theme.css"), "utf8"))).length).toBeGreaterThan(0);
+  });
+});

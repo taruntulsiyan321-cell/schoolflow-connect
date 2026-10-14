@@ -668,17 +668,25 @@ function InputBar({
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function AICoach() {
+/**
+ * Nova. The AI Coach page, and the same Nova `embedded` in the pop-up every
+ * other screen opens (NovaPopup, docs/TODO.md D2): one chat, one store of
+ * conversations, laid out for a panel instead of a page.
+ */
+export default function AICoach({ embedded = false }: { embedded?: boolean } = {}) {
   const student = useGurukulStudent();
   const { examName, examCode } = useGurukulAcademicIdentity();
   const examLabel = examName || examCode || null;
   const { user, role } = useAuth();
   const { studentId, schoolId } = useAcademicContext();
-  // The mode lives in the URL, so ?mode=revision is a link to Revision mode and
-  // a reload keeps the student where they were.
+  // On the page the mode lives in the URL, so ?mode=revision is a link to
+  // Revision mode and a reload keeps the student where they were. In the
+  // pop-up the URL belongs to the screen underneath, so the mode is local.
   const [searchParams, setSearchParams] = useSearchParams();
-  const mode: NovaMode = searchParams.get("mode") === "revision" ? "revision" : "chat";
-  const setMode = (m: NovaMode) => setSearchParams(m === "revision" ? { mode: "revision" } : {}, { replace: true });
+  const [localMode, setLocalMode] = useState<NovaMode>("chat");
+  const mode: NovaMode = embedded ? localMode : searchParams.get("mode") === "revision" ? "revision" : "chat";
+  const setMode = (m: NovaMode) =>
+    embedded ? setLocalMode(m) : setSearchParams(m === "revision" ? { mode: "revision" } : {}, { replace: true });
 
   const convoStorageKey = novaConversationsKey({ userId: user?.id, schoolId: schoolId ?? undefined });
   const [convos,     setConvos]     = useState<Conversation[]>(EMPTY_CONVOS);
@@ -746,7 +754,9 @@ export default function AICoach() {
       return;
     }
     handoffAppliedRef.current = true;
-    const ctx = consumeNovaQuestionContext();
+    // A question handed to Nova ("Ask Nova") is the AI Coach page's to open:
+    // the hand-off navigates there. The pop-up must not take it on the way.
+    const ctx = embedded ? null : consumeNovaQuestionContext();
     if (!ctx) {
       setConvos(stored);
       return;
@@ -1072,18 +1082,20 @@ export default function AICoach() {
     // "content starts 74px down… the nav is 69px tall" — and bleed sideways
     // by a padding the shell does not have from lg up, so the first change to
     // the chrome put its composer under the bottom bar.
-    <div className="flex flex-1 min-h-0 overflow-hidden">
+    <div className={cn("flex flex-1 min-h-0 overflow-hidden", embedded && "relative")}>
       {/* AI Coach is a full-height chat and deliberately has no PageHeader —
           a title bar above it would cost the thread a line of height on a
           phone for a word the top bar already shows. But a document still
           needs a heading: with the Layout's chrome <h1> removed (it was a
           second h1 on every screen at 14px), this was the one screen left
           with none at all. Visually hidden, so the layout is unchanged and a
-          screen reader still knows what it landed on. */}
-      <h1 className="sr-only">AI Coach</h1>
+          screen reader still knows what it landed on. In the pop-up the
+          screen underneath has its own h1, and the pop-up is labelled. */}
+      {!embedded && <h1 className="sr-only">AI Coach</h1>}
 
-      {/* ── Sidebar (desktop always visible, mobile overlay) — chat only ── */}
-      {mode === "chat" && <div className={cn(
+      {/* ── Sidebar (desktop always visible, mobile overlay) — chat only.
+          The pop-up is too narrow to dock it, so there it is always the overlay. ── */}
+      {mode === "chat" && !embedded && <div className={cn(
         "shrink-0 border-r border-border transition-all duration-300 overflow-hidden",
         "hidden lg:block",
         "w-64"
@@ -1097,7 +1109,7 @@ export default function AICoach() {
 
       {/* Mobile sidebar overlay */}
       {mode === "chat" && sidebarOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden flex">
+        <div className={embedded ? "absolute inset-0 z-20 flex" : "fixed inset-0 z-40 lg:hidden flex"}>
           <div className="w-72 shrink-0">
             <Sidebar convos={convos} activeId={activeId}
               onSelect={id => { setActiveId(id); setSidebarOpen(false); }}
@@ -1121,7 +1133,7 @@ export default function AICoach() {
         ) : (<>
         {/* Conversation header */}
         <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-border">
-          <button onClick={() => setSidebarOpen(true)} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all lg:hidden">
+          <button onClick={() => setSidebarOpen(true)} aria-label="Your conversations" className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all", !embedded && "lg:hidden")}>
             <ChevronLeft className="w-4 h-4"/>
           </button>
 

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 
@@ -14,6 +14,17 @@ const notes = vi.hoisted(() => ({ unread: 0, photo: null as string | null }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "u1" }, signOut: vi.fn() }) }));
 vi.mock("@/hooks/useProfilePhoto", () => ({ useProfilePhoto: () => ({ url: notes.photo, hasPhoto: Boolean(notes.photo) }) }));
 vi.mock("@/hooks/useNotifications", () => ({ useNotifications: () => ({ unread: notes.unread }) }));
+// Nova itself is tested in AICoach.*.test.tsx; here it is a stand-in that counts its mounts.
+const nova = vi.hoisted(() => ({ mounts: 0 }));
+vi.mock("@/gurukul/pages/AICoach", async () => {
+  const { useEffect } = await import("react");
+  return {
+    default: function NovaStandIn({ embedded }: { embedded?: boolean }) {
+      useEffect(() => { nova.mounts += 1; }, []);
+      return <textarea aria-label="Message Nova" data-embedded={String(embedded)} />;
+    },
+  };
+});
 
 import Layout from "./Layout";
 
@@ -31,6 +42,7 @@ function show(page: PageKey) {
 }
 
 beforeEach(() => {
+  nova.mounts = 0;
   notes.unread = 0;
   notes.photo = null;
 });
@@ -103,8 +115,8 @@ describe("on a phone", () => {
     const { bottom } = show("practice");
     expect(bottom.className).not.toMatch(/\bfixed\b/);
     const main = screen.getByRole("main");
-    // Nothing reserves room for a bar on top of it, either.
-    expect((main.firstElementChild as HTMLElement).className).not.toMatch(/pb-24/);
+    // The bar comes after the page; the only room kept under a page is for the
+    // Nova button (below), which is laid over the page by design.
     expect(main.compareDocumentPosition(bottom) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
@@ -169,5 +181,53 @@ describe("the account menu", () => {
     const menu = screen.getByRole("menu");
     expect(within(menu).getByText("Asha")).toBeInTheDocument();
     expect(within(menu).getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Sign out"]);
+  });
+});
+
+describe("Nova on every screen (D2)", () => {
+  it("is a button on every screen but AI Coach, which is Nova", () => {
+    show("practice");
+    expect(screen.getByRole("button", { name: "Ask Nova" })).toBeInTheDocument();
+    cleanup();
+    show("analysis");
+    expect(screen.getByRole("button", { name: "Ask Nova" })).toBeInTheDocument();
+    cleanup();
+    show("aicoach");
+    expect(screen.queryByRole("button", { name: "Ask Nova" })).toBeNull();
+  });
+
+  it("opens Nova itself, embedded, beside the page, with the composer ready", async () => {
+    show("practice");
+    expect(screen.queryByRole("dialog", { name: "Nova" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Ask Nova" }));
+    const panel = screen.getByRole("dialog", { name: "Nova" });
+    expect(panel.className).toMatch(/\bflex\b/);
+    expect(within(panel).getByLabelText("Message Nova")).toHaveAttribute("data-embedded", "true");
+    await waitFor(() => expect(document.activeElement).toBe(within(panel).getByLabelText("Message Nova")));
+    expect(within(panel).getByRole("link", { name: /Open AI Coach/ })).toHaveAttribute("href", "/student/aicoach");
+    // The page is still there underneath.
+    expect(screen.getByText("Page body")).toBeInTheDocument();
+  });
+
+  it("closes on Escape, gives focus back to the button, and keeps the conversation mounted", async () => {
+    show("practice");
+    fireEvent.click(screen.getByRole("button", { name: "Ask Nova" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    const panel = screen.getByRole("dialog", { name: "Nova", hidden: true });
+    expect(panel.className).toMatch(/\bhidden\b/);
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Ask Nova" })));
+    fireEvent.click(screen.getByRole("button", { name: "Ask Nova" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close Nova" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ask Nova" }));
+    // Mounted once: a reply in flight survives closing the panel.
+    expect(nova.mounts).toBe(1);
+  });
+
+  it("a document page keeps room under its last control for the button; AI Coach, with none, does not", () => {
+    show("practice");
+    expect((screen.getByRole("main").firstElementChild as HTMLElement).className).toMatch(/\bpb-24\b/);
+    cleanup();
+    show("aicoach");
+    expect((screen.getByRole("main").firstElementChild as HTMLElement).className).not.toMatch(/\bpb-24\b/);
   });
 });

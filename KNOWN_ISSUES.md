@@ -5974,3 +5974,72 @@ with the one-mark-per-question rule. It now picks an unmarked one, and `verify:c
   integration). Migrations here are applied by script, with proofs and round-trip tests.
 * **Screen capture has no button on the website, by design (111).** It lives on the Android app's Profile screen;
   a website cannot capture another app's screen.
+
+## 134. Nova on every screen (D2) — BUILT 2026-10-14; the theme's button ripple rule removed
+
+A round "Ask Nova" button now sits at the bottom right of every student screen. On a phone it sits above the
+bottom navigation. It opens Nova beside the page (a 26rem panel on wider screens, the whole screen on a phone),
+with the cursor already in the composer. Escape or the close button shuts it and puts focus back on the button.
+"Open AI Coach" leaves for the full page.
+
+* **It is Nova itself, not a second chat.** The panel holds `AICoach embedded` with the same conversations.
+  Embedded, it keeps its mode in its own state, not the URL. It does not take the AI Coach page's question
+  hand-off, and its conversation list opens inside the panel. Layout renders it outside the page area, which
+  re-mounts on every navigation. So a conversation, and a reply still arriving, carry across screens. Measured:
+  asked "what is working capital" on Practice, then went to Analysis with the panel open, and the conversation
+  was still there.
+* **Where it is not.** It is not on AI Coach, so two Novas never write the same conversations. It is not shown
+  during a mock paper: the paper renders without the app shell (`isSittingAMock`), so Nova cannot answer the
+  paper's questions. Tests pin both cases with controls.
+* **Nothing is hidden under it.** Every non-fill page now ends with `pb-24`. Measured at the end of Analysis:
+  the button covers no link or button at 1280 or at 375.
+
+**The ripple rule.** The button first drew at x=200, not at the right edge. Cause: `theme.css` gave every
+student-panel button `position: relative; overflow: hidden` for a press-ripple `::after`. At (0,1,1) that rule
+beats Tailwind's `.fixed` (0,1,0), so no button in the panel could ever be `fixed`, `absolute` or `sticky`.
+Under RULE 0 the rule was removed, not out-specified for one button. To find what depended on it, each screen
+(15 screens, both widths) was measured with the three ripple rules deleted from the live stylesheet and the same
+data on screen. Only the Nova button and the area it sits in moved. A separate check of every drawn button for
+content outside its own box (what `overflow: hidden` had been clipping) found 0 of 1,482 that spill; its
+control, a button made to spill, was caught. `theme.test.ts` now refuses any rule that positions or clips every
+button (2 of 2 mutants killed).
+
+Measured as the test student on this worktree's build (1280 and 375):
+* the panel opens at the right size;
+* focus is in the composer;
+* Nova answered;
+* the panel survived navigation;
+* Escape closed it;
+* no console errors.
+
+Unit tests: Layout 17, AICoach embedded 6, mock-has-no-Nova 2, theme 10; 12 of 12 D2 mutants killed.
+
+Left for the styling phase: the other element-wide rules in `theme.css` (E1 part 2, `size-utilities-must-not-set-colour`).
+
+## 135. `db:verify-integrity` had been red since late September, unrecorded — FIXED 2026-10-14
+
+Four checks failed. The live data broke no rule. In both cases the check had not been rewritten when the rule it
+watched was changed.
+
+* **Enrolment (two checks).** "Every student has an enrolment_date / one open enrolment row" failed for 4 students,
+  and those 4 are every exam account there is (23 and 24 Sep). An exam account is a tenant of one
+  (`schools.kind = 'individual'`), with no section, no academic year and no attendance. Enrolment and 10.27
+  (attendance counts from the enrolment date) are school rules, and all 223 school students keep them. The checks
+  now cover every student whose school is not `individual`, which includes a student with no school or a future
+  kind. They also refuse to pass when nobody is in scope.
+* **Views (two checks).** "Exactly one view fences itself" named only `attendance_day_edits`. But since
+  20261049000000 (68), `question_bank_student` has run as its owner on purpose: it is students' only door into a
+  base table that holds the answers. 131 recorded it as kept, with that reason. The check now names both views and
+  requires each one's fence in its body: `attendance_day_edits` keeps its school and role fences, and
+  `question_bank_student` keeps `WHERE is_approved` and the caller's `get_my_school_id()` and carries no
+  `correct_index`, `explanation` or `answer` column. A third such view still fails.
+
+**Measured.** The gate now passes every check. Five mutants run against live each made the named check fail, with
+no other check failing:
+* exam accounts back in scope;
+* an empty scope;
+* a gutted fence;
+* an answer column;
+* an unnamed view.
+
+The file was restored after each one.

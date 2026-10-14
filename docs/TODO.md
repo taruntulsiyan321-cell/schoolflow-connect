@@ -187,9 +187,11 @@ Best first. Each is weaknesses-only (§10.8) and none compares students (§6.7).
   now (top bar, bottom bar's Account tab, account menu, Profile card); remove
   or replace; works from the phone's camera and gallery in the Android app.
   The initials stay the fallback.
-- **D2. Nova pop-up — later** (owner): a Nova button on every screen that opens
-  Nova in a pop-up without leaving the page. Decide then: off during a mock
-  paper, so it cannot answer the questions.
+- **~~D2. Nova pop-up~~ — BUILT 2026-10-14 (KNOWN_ISSUES 134)** (owner): a Nova button on every screen that opens
+  Nova in a pop-up without leaving the page. Off during a mock paper, so it
+  cannot answer the questions (the paper renders without the app shell). Not
+  on AI Coach, which is Nova. The pop-up is Nova itself, with the same
+  conversations; it stays open across screens and keeps a reply in flight.
 
 ## E. Carried open from earlier sessions
 
